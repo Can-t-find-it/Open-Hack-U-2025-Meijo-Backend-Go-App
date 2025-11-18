@@ -1,10 +1,13 @@
 package models
 
-import "gorm.io/gorm"
+import (
+	"time"          // 時刻型を使う場合
+)
 
-// チーム情報を管理するモデル
 type Team struct {
-	gorm.Model
-	Name    string // チーム名
-	Members []User `gorm:"many2many:team_users;"` // 多対多リレーション
+    ID        uint   `gorm:"primaryKey"`
+    Name      string
+    CreatedAt time.Time
+    UpdatedAt time.Time
+    Users     []User
 }

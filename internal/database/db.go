@@ -47,15 +47,18 @@ func Connect() {
 
 // AutoMigrate 関数
 func AutoMigrate() {
-	err := DB.AutoMigrate(
-		&models.User{},
-		&models.Question{},
-		&models.Penalty{},
-		&models.StudyLog{},
-		&models.Team{},
-	)
-	if err != nil {
-		log.Fatal("failed to migrate database, got error:", err)
-	}
-	fmt.Println("Database migration completed!")
+    err := DB.AutoMigrate(
+        &models.User{},
+        &models.Team{},
+        &models.StudyLog{},
+        &models.Penalty{},
+        &models.StudyMaterial{},
+        &models.Friend{},
+        &models.IconHistory{},
+    )
+    if err != nil {
+        log.Fatal("failed to migrate database, got error:", err)
+    }
+    fmt.Println("Database migration completed!")
 }
+

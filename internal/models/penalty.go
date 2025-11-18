@@ -1,11 +1,13 @@
 package models
 
-import "gorm.io/gorm"
+import (
+	"time"          // 時刻型を使う場合
+)
 
-// ペナルティ情報を管理するモデル
 type Penalty struct {
-	gorm.Model
-	UserID      uint   // 関連するユーザー
-	Description string // ペナルティ内容
-	Active      bool   // 発動中かどうか
+    ID         uint      `gorm:"primaryKey"`
+    UserID     uint
+    Type       string    // icon_lock, spam_notifications, data_erode
+    ExecutedAt time.Time
+    ExpiresAt  time.Time
 }
