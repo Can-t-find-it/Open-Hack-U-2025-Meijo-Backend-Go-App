@@ -9,7 +9,7 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
-	"hacku_2025_meijo/backend/internal/models" // User などのモデルをここでインポート
+	"hacku_2025_meijo/internal/models" // User などのモデルをここでインポート
 )
 
 var DB *gorm.DB
