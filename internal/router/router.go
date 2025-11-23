@@ -36,6 +36,8 @@ func SetupRouter() *gin.Engine {
 	// ご要望のヘルスチェックも追加
 	r.GET("/health", handlers.HealthCheck)
 
+	authHandler := handlers.NewAuthHandler()
+
 	// --- APIルーティングの定義 ---
 	// ここに問題生成に関するすべてのエンドポイントを追加します
 	api := r.Group("/")
@@ -56,7 +58,10 @@ func SetupRouter() *gin.Engine {
 		api.POST("/generate_problem/", handlers.GenerateProblemHandler)
 
 		// ログイン機能
-		api.POST("/login", handlers.NewAuthHandler().Login)
+		api.POST("/login", authHandler.Login)
+
+		//サインアップ機能
+		api.POST("/signup", authHandler.SignUp)
 	}
 
 	return r

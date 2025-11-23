@@ -32,3 +32,20 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, response)
 }
+
+func (h *AuthHandler) SignUp(c *gin.Context) {
+	var input dtos.UserSignup
+	if err := c.ShouldBindBodyWithJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "入力データが不正です" + err.Error()})
+		return
+	}
+
+	response, err := h.service.Signup(input)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "登録に失敗しました" + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, response)
+
+}

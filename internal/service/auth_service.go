@@ -49,6 +49,39 @@ func (s *AuthService) Login(input dtos.LoginInput) (*dtos.LoginResponse, error) 
 
 }
 
+// Signup機能
+func (s *AuthService) Signup(input dtos.UserSignup) (*dtos.LoginResponse, error) {
+	hashpassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), 10)
+	if err != nil {
+		return nil, err
+	}
+
+	user := models.User{
+		Name:         input.Name,
+		Email:        input.Email,
+		PasswordHash: string(hashpassword),
+	}
+
+	if err := database.DB.Create(&user).Error; err != nil {
+		return nil, err
+	}
+
+	token, err := GenerateToken(user.ID, user.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	return &dtos.LoginResponse{
+		Token: token,
+		User: dtos.UserResponse{
+			ID:      user.ID,
+			Name:    user.Name,
+			Email:   user.Email,
+			IconURL: user.IconURL,
+		},
+	}, nil
+}
+
 func GenerateToken(userID uint, username string) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id":  userID,
