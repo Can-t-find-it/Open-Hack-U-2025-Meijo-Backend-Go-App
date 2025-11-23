@@ -10,8 +10,12 @@ import (
 	"regexp"
 	"strings"
 
+	"hacku_2025_meijo/internal/database"
 	"hacku_2025_meijo/internal/dtos" // DTOsパッケージをインポート
+	"hacku_2025_meijo/internal/models"
 )
+
+
 
 // OpenAI APIエンドポイント
 const openaiAPIURL = "https://api.openai.com/v1/chat/completions"
@@ -256,4 +260,27 @@ func Generate4ChoiceWorkbookForQAndA(answers []string, pattern string) ([]dtos.R
 	}
 
 	return results, nil
+}
+
+func SaveQuestionToDB(item dtos.ResultItem, pattern string) (uint, error) {
+
+    optionsJSON, _ := json.Marshal(item.Options)
+
+    record := models.Question{
+        Pattern:     pattern,
+        Question:    item.Question,
+        OptionsJSON: string(optionsJSON),
+        Explanation: item.Explanation,
+    }
+
+    result := database.DB.Create(&record)
+    return record.ID, result.Error
+}
+
+func DeleteQuestionByID(id string) error {
+    // GORM の Delete
+    if err := database.DB.Delete(&models.Question{}, id).Error; err != nil {
+        return err
+    }
+    return nil
 }
