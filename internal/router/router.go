@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	// プロジェクトのルートが 'hacku_2025_meijo/backend' であることを前提
 	"hacku_2025_meijo/internal/handlers"
+	"hacku_2025_meijo/internal/middleware"
 )
 
 // SetupRouter はアプリケーションのすべてのルーティングを設定します。
@@ -42,26 +43,31 @@ func SetupRouter() *gin.Engine {
 	// ここに問題生成に関するすべてのエンドポイントを追加します
 	api := r.Group("/")
 	{
-		// 1. 単一問題生成 (GET)
-		api.GET("/generate_4choice/", handlers.GenerateQuestion4ChoiceHandler)
-
-		// 2. 単一問題生成 (POST) - 四択
-		api.POST("/generate_question_4choice_api/", handlers.GenerateQuestion4ChoiceAPIHandler)
-
-		// 3. 複数問題生成 (POST) - 一問一答/穴埋め
-		api.POST("/generate_workbook_for_q_and_a/", handlers.GenerateWorkbookForQAndAHandler)
-
-		// 4. 複数問題生成 (POST) - 四択
-		api.POST("/generate_4_choice_workbook_for_q_and_a/", handlers.Generate4ChoiceWorkbookForQAndAHandler)
-
-		// 5. 統合問題生成 (POST)
-		api.POST("/generate_problem/", handlers.GenerateProblemHandler)
-
 		// ログイン機能
 		api.POST("/login", authHandler.Login)
 
 		//サインアップ機能
 		api.POST("/signup", authHandler.SignUp)
+
+		// ログインしないと使えないAPIエリア
+		protected := api.Group("/")
+		protected.Use(middleware.AuthMiddleware())
+		{
+			// 1. 単一問題生成 (GET)
+			protected.GET("/generate_4choice", handlers.GenerateQuestion4ChoiceHandler)
+
+			// 2. 単一問題生成 (POST) - 四択
+			protected.POST("/generate_question_4choice_api", handlers.GenerateQuestion4ChoiceAPIHandler)
+
+			// 3. 複数問題生成 (POST) - 一問一答/穴埋め
+			protected.POST("/generate_workbook_for_q_and_a", handlers.GenerateWorkbookForQAndAHandler)
+
+			// 4. 複数問題生成 (POST) - 四択
+			protected.POST("/generate_4_choice_workbook_for_q_and_a", handlers.Generate4ChoiceWorkbookForQAndAHandler)
+
+			// 5. 統合問題生成 (POST)
+			protected.POST("/generate_problem", handlers.GenerateProblemHandler)
+		}
 	}
 
 	return r
