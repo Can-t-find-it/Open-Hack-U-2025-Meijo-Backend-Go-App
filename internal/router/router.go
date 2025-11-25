@@ -42,6 +42,7 @@ func SetupRouter() *gin.Engine {
 	{
 		api.POST("/question/", handlers.GenerateProblemHandler)
 		api.DELETE("/question/:id", handlers.DeleteQuestionHandler)
+		api.POST("/getfriends", handlers.NewFriendGetAllHandler().GetAllFriends)
 	}
 
 	return r
