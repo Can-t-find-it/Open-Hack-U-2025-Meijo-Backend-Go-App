@@ -41,7 +41,7 @@ func SetupRouter() *gin.Engine {
 
 	// --- APIルーティングの定義 ---
 	// ここに問題生成に関するすべてのエンドポイントを追加します
-	api := r.Group("/")
+	api := r.Group("/api")
 	{
 		// ログイン機能
 		api.POST("/login", authHandler.Login)
@@ -67,6 +67,8 @@ func SetupRouter() *gin.Engine {
 
 			// 5. 統合問題生成 (POST)
 			protected.POST("/generate_problem", handlers.GenerateProblemHandler)
+      protected.POST("/question/", handlers.GenerateProblemHandler)
+      protected.DELETE("/question/:id", handlers.DeleteQuestionHandler)
 		}
 	}
 

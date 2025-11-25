@@ -26,31 +26,7 @@ func CORSMiddleware() gin.HandlerFunc {
 	}
 }
 
-// ---- GET 四択 ----
-func GenerateQuestion4ChoiceHandler(c *gin.Context) {
-	word := c.Query("word")
-
-	if word == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "word is required"})
-		return
-	}
-
-	result, err := service.GenerateSingle4ChoiceQuestion(word, "1問1答", []string{})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"word":        word,
-		"question":    result.Question,
-		"options":     result.Options,
-		"answer":      word,
-		"explanation": result.Explanation,
-	})
-}
-
-// ---- POST 一問一答・穴埋め 単体 ----
+// ---- POST 問題生成 ----
 func GenerateProblemHandler(c *gin.Context) {
 	var body dtos.RequestBody
 	if err := c.ShouldBindJSON(&body); err != nil {
@@ -58,12 +34,41 @@ func GenerateProblemHandler(c *gin.Context) {
 		return
 	}
 
-	if body.Answer == "" || body.Pattern == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "解答 and pattern are required"})
+	if body.Pattern == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "`pattern` is required"})
 		return
 	}
 
-	resultItems, err := service.GenerateWorkbookForQAndA([]string{body.Answer}, body.Pattern)
+	var resultItems []dtos.ResultItem
+	var err error
+
+	// -----------------------
+	// ① 四択
+	// -----------------------
+	if body.Pattern == "四択" {
+		if body.Answer != "" {
+			var item dtos.ResultItem
+			item, err = service.GenerateSingle4ChoiceQuestion(body.Answer, body.Pattern, body.ExistingQuestions)
+			resultItems = append(resultItems, item)
+		} else if len(body.Answers) > 0 {
+			resultItems, err = service.Generate4ChoiceWorkbookForQAndA(body.Answers, body.Pattern)
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "`answer` or `answers` is required for 4choice"})
+			return
+		}
+	} else { // -----------------------
+		// ② 一問一答・穴埋め
+		// -----------------------
+		if body.Answer != "" {
+			resultItems, err = service.GenerateWorkbookForQAndA([]string{body.Answer}, body.Pattern)
+		} else if len(body.Answers) > 0 {
+			resultItems, err = service.GenerateWorkbookForQAndA(body.Answers, body.Pattern)
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "`answer` or `answers` is required"})
+			return
+		}
+	}
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -74,71 +79,39 @@ func GenerateProblemHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, resultItems[0])
+	// --- DB保存 ---
+	ids := []int{}
+	for _, item := range resultItems {
+		id, err := service.SaveQuestionToDB(item, body.Pattern)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "DB保存に失敗"})
+			return
+		}
+		ids = append(ids, int(id))
+	}
+
+	// --- レスポンス ---
+	c.JSON(http.StatusOK, gin.H{
+		"message":   "問題生成＆保存成功",
+		"ids":       ids,
+		"questions": resultItems,
+	})
 }
 
-// ---- POST 一問一答・穴埋め 複数 ----
-func GenerateWorkbookForQAndAHandler(c *gin.Context) {
-	var body dtos.RequestBody
-	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON: " + err.Error()})
-		return
-	}
+// DELETE /api/question/:id
+func DeleteQuestionHandler(c *gin.Context) {
+    id := c.Param("id")
+    if id == "" {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "id is required"})
+        return
+    }
 
-	if len(body.Answers) == 0 || body.Pattern == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "`解答` list and `pattern` are required"})
-		return
-	}
+    err := service.DeleteQuestionByID(id)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
 
-	resultItems, err := service.GenerateWorkbookForQAndA(body.Answers, body.Pattern)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, resultItems)
+    c.JSON(http.StatusOK, gin.H{"message": "問題を削除しました"})
 }
 
-// ---- POST 四択 複数 ----
-func Generate4ChoiceWorkbookForQAndAHandler(c *gin.Context) {
-	var body dtos.RequestBody
-	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON: " + err.Error()})
-		return
-	}
-
-	if len(body.Answers) == 0 || body.Pattern == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "`解答` list and `pattern` are required"})
-		return
-	}
-
-	resultItems, err := service.Generate4ChoiceWorkbookForQAndA(body.Answers, body.Pattern)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, resultItems)
-}
-
-// ---- POST 四択（単体）----
-func GenerateQuestion4ChoiceAPIHandler(c *gin.Context) {
-	var body dtos.RequestBody
-	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON: " + err.Error()})
-		return
-	}
-
-	if body.Answer == "" || body.Pattern == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "解答 and pattern are required"})
-		return
-	}
-
-	result, err := service.GenerateSingle4ChoiceQuestion(body.Answer, body.Pattern, body.ExistingQuestions)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, []dtos.ResultItem{result})
-}
