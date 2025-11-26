@@ -55,6 +55,11 @@ func AutoMigrate() {
         &models.StudyMaterial{},
         &models.Friend{},
         &models.IconHistory{},
+
+		&models.Folder{},
+		&models.Textbook{},
+		&models.Question{},
+		&models.QuestionStatement{},
     )
     if err != nil {
         log.Fatal("failed to migrate database, got error:", err)

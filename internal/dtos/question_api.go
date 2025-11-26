@@ -6,7 +6,9 @@ type RequestBody struct {
     Answers           []string `json:"answers"`             // 複数解答用
     Answer            string   `json:"answer"`              // 単体問題用
     Pattern           string   `json:"pattern"`             // 問題形式
-    ExistingQuestions []string `json:"existing_questions"`  // 重複回避用
+    ExistingQuestions []string `json:"existing_questions"`
+    
+    TextbookID        uint     `json:"textbookId"`         // 保存先の教科書ID// 重複回避用
 }
 
 type ResultItem struct {

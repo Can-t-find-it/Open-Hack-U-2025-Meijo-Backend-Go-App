@@ -257,3 +257,4 @@ func Generate4ChoiceWorkbookForQAndA(answers []string, pattern string) ([]dtos.R
 
 	return results, nil
 }
+

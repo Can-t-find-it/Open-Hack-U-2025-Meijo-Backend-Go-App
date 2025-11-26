@@ -14,6 +14,10 @@ type User struct {
     LastActiveAt  time.Time
     TeamID        *uint
     Team          Team           `gorm:"foreignKey:TeamID"`
+
+    // ↓【追加】ユーザーは複数の学習フォルダを持つ
+	Folders       []Folder  `gorm:"foreignKey:UserID"`
+    
     CreatedAt     time.Time
     UpdatedAt     time.Time
 }
