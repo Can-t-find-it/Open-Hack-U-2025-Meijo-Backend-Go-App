@@ -1,0 +1,38 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/app
+      - go-cache:/go/pkg/mod
+    # ★追加: 環境変数 (DBへの接続情報)
+    environment:
+      - DB_HOST=db
+      - DB_USER=cantfindit
+      - DB_PASSWORD=five_generation
+      - DB_NAME=hackathon_db
+      - DB_PORT=5432
+    # ★追加: dbサービスが起動してからappを起動する設定
+    depends_on:
+      - db
+
+  # ★追加: PostgreSQLのコンテナ定義
+  db:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=cantfindit
+      - POSTGRES_PASSWORD=five_generation
+      - POSTGRES_DB=hackathon_db
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+# ★追加: DBデータを永続化するためのボリューム
+volumes:
+  go-cache:
+  postgres-data:

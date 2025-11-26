@@ -10,8 +10,12 @@ import (
 	"regexp"
 	"strings"
 
+	"hacku_2025_meijo/internal/database"
 	"hacku_2025_meijo/internal/dtos" // DTOsパッケージをインポート
+	"hacku_2025_meijo/internal/models"
 )
+
+
 
 // OpenAI APIエンドポイント
 const openaiAPIURL = "https://api.openai.com/v1/chat/completions"
@@ -258,3 +262,32 @@ func Generate4ChoiceWorkbookForQAndA(answers []string, pattern string) ([]dtos.R
 	return results, nil
 }
 
+// SaveQuestionToDB: 生成された問題を、階層構造DBに保存する
+func SaveQuestionToDB(textbookID uint, item dtos.ResultItem, answer string) (uint, error) {
+
+	// 1. 親データ（Question）を作成
+	question := models.Question{
+		TextbookID: textbookID,
+		Answer:     answer, // 正解の単語
+		// 2. 子データ（QuestionStatement）を作成
+		QuestionStatements: []models.QuestionStatement{
+			{
+				Statement: item.Question,    // 問題文
+				Explain:   item.Explanation, // 解説
+				Choices:   item.Options,     // 選択肢 (GORMがJSON化して保存)
+			},
+		},
+	}
+
+	// 3. DBに保存
+	result := database.DB.Create(&question)
+	return question.ID, result.Error
+}
+
+// DeleteQuestionByID: モデルを指定して削除
+func DeleteQuestionByID(id string) error {
+	if err := database.DB.Delete(&models.Question{}, "id = ?", id).Error; err != nil {
+		return err
+	}
+	return nil
+}

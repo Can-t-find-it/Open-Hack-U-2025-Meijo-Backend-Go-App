@@ -52,6 +52,7 @@ func AutoMigrate() {
         &models.Team{},
         &models.StudyLog{},
         &models.Penalty{},
+		&models.Question{},
         &models.StudyMaterial{},
         &models.Friend{},
         &models.IconHistory{},

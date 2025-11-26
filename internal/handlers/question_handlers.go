@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"hacku_2025_meijo/internal/dtos"
@@ -55,7 +56,7 @@ func GenerateQuestion4ChoiceHandler(c *gin.Context) {
 	})
 }
 
-// ---- POST 一問一答・穴埋め 単体 ----
+// ---- POST 問題生成・保存 (統合ハンドラ) ----
 func GenerateProblemHandler(c *gin.Context) {
 	var body dtos.RequestBody
 	if err := c.ShouldBindJSON(&body); err != nil {
@@ -63,12 +64,46 @@ func GenerateProblemHandler(c *gin.Context) {
 		return
 	}
 
-	if body.Answer == "" || body.Pattern == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "解答 and pattern are required"})
+	if body.Pattern == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "`pattern` is required"})
 		return
 	}
 
-	resultItems, err := service.GenerateWorkbookForQAndA([]string{body.Answer}, body.Pattern)
+	// 教科書IDがないと保存できないのでエラーにする
+	if body.TextbookID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "textbookId is required"})
+		return
+	}
+
+	var resultItems []dtos.ResultItem
+	var err error
+
+	// -----------------------
+	// ① 生成ロジック
+	// -----------------------
+	if body.Pattern == "四択" {
+		if body.Answer != "" {
+			var item dtos.ResultItem
+			item, err = service.GenerateSingle4ChoiceQuestion(body.Answer, body.Pattern, body.ExistingQuestions)
+			resultItems = append(resultItems, item)
+		} else if len(body.Answers) > 0 {
+			resultItems, err = service.Generate4ChoiceWorkbookForQAndA(body.Answers, body.Pattern)
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "`answer` or `answers` is required for 4choice"})
+			return
+		}
+	} else {
+		// ② 一問一答・穴埋め
+		if body.Answer != "" {
+			resultItems, err = service.GenerateWorkbookForQAndA([]string{body.Answer}, body.Pattern)
+		} else if len(body.Answers) > 0 {
+			resultItems, err = service.GenerateWorkbookForQAndA(body.Answers, body.Pattern)
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "`answer` or `answers` is required"})
+			return
+		}
+	}
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -79,32 +114,36 @@ func GenerateProblemHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, resultItems[0])
+	// -----------------------
+	// ③ DB保存 (りょうさんの階層構造へ)
+	// -----------------------
+	ids := []int{}
+	for i, item := range resultItems {
+		// 正解の単語を特定
+		currentAnswer := ""
+		if body.Answer != "" {
+			currentAnswer = body.Answer
+		} else if i < len(body.Answers) {
+			currentAnswer = body.Answers[i]
+		}
+
+		// 教科書IDを指定して保存
+		id, err := service.SaveQuestionToDB(body.TextbookID, item, currentAnswer)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "DB保存に失敗"})
+			return
+		}
+		ids = append(ids, int(id))
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":   "問題生成＆保存成功",
+		"ids":       ids,
+		"questions": resultItems,
+	})
 }
 
-// ---- POST 一問一答・穴埋め 複数 ----
-func GenerateWorkbookForQAndAHandler(c *gin.Context) {
-	var body dtos.RequestBody
-	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON: " + err.Error()})
-		return
-	}
-
-	if len(body.Answers) == 0 || body.Pattern == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "`解答` list and `pattern` are required"})
-		return
-	}
-
-	resultItems, err := service.GenerateWorkbookForQAndA(body.Answers, body.Pattern)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, resultItems)
-}
-
-// ---- POST 四択 複数 ----
+// ---- POST 四択 複数 (個別API) ----
 func Generate4ChoiceWorkbookForQAndAHandler(c *gin.Context) {
 	var body dtos.RequestBody
 	if err := c.ShouldBindJSON(&body); err != nil {
@@ -126,7 +165,7 @@ func Generate4ChoiceWorkbookForQAndAHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, resultItems)
 }
 
-// ---- POST 四択（単体）----
+// ---- POST 四択 単体 (個別API) ----
 func GenerateQuestion4ChoiceAPIHandler(c *gin.Context) {
 	var body dtos.RequestBody
 	if err := c.ShouldBindJSON(&body); err != nil {
@@ -148,14 +187,35 @@ func GenerateQuestion4ChoiceAPIHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, []dtos.ResultItem{result})
 }
 
+// ---- POST 一問一答・穴埋め 複数 (個別API) ----
+func GenerateWorkbookForQAndAHandler(c *gin.Context) {
+	var body dtos.RequestBody
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON: " + err.Error()})
+		return
+	}
+
+	if len(body.Answers) == 0 || body.Pattern == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "`解答` list and `pattern` are required"})
+		return
+	}
+
+	resultItems, err := service.GenerateWorkbookForQAndA(body.Answers, body.Pattern)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, resultItems)
+}
+
 // ==========================================
 // 2. 教科書・DB管理機能
 // ==========================================
 
 // GET /api/textbooks - 教科書一覧取得
 func GetTextbooksHandler(c *gin.Context) {
-	// テスト用にユーザーIDを1に固定
-	userID := uint(1)
+	userID := uint(1) // テスト用（本来はJWTから取得）
 
 	result, err := service.GetUserTextbooks(userID)
 	if err != nil {
@@ -207,7 +267,27 @@ func DeleteTextbookHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Textbook deleted"})
 }
 
-// POST /api/question - 生成した問題をDBに保存
+// POST /api/textbook_result - 学習結果保存
+func UpdateTextbookResultHandler(c *gin.Context) {
+	var req struct {
+		TextbookID uint    `json:"textbookId"`
+		Score      float64 `json:"score"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON: " + err.Error()})
+		return
+	}
+
+	idStr := strconv.Itoa(int(req.TextbookID))
+	err := service.UpdateTextbookStatus(idStr, req.Score)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Score updated successfully"})
+}
+
+// POST /api/question - 生成した問題をDBに保存 (単体)
 func AddQuestionHandler(c *gin.Context) {
 	var req struct {
 		TextbookID uint            `json:"textbookId"`
@@ -278,17 +358,13 @@ func DeleteQuestionStatementHandler(c *gin.Context) {
 
 // GET /api/word - 覚えたい単語提案
 func SuggestWordHandler(c *gin.Context) {
-	// Service層から単語を取得
 	word, err := service.GetSuggestedWord()
 	
 	if err != nil {
-		// データがない場合などのエラー処理
 		c.JSON(http.StatusNotFound, gin.H{"error": "No words found"})
 		return
 	}
 
-	// シンプルに単語を返す、またはJSONで返す
-	// 仕様書に形式が詳しく書いていないですが、とりあえずJSONで返します
 	c.JSON(http.StatusOK, gin.H{
 		"word": word,
 	})
