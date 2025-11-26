@@ -76,6 +76,8 @@ func SetupRouter() *gin.Engine {
 
 			// === その他 ===
 			protected.GET("/word", handlers.SuggestWordHandler) // 単語提案
+
+            
 		}
 	}
 
