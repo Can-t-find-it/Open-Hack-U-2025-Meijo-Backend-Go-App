@@ -150,3 +150,28 @@ func UpdateTextbookStatus(textbookID string, newScore float64) error {
 
 	return database.DB.Save(&textbook).Error
 }
+
+// DeleteFolder: フォルダを削除する（中身も全消去）
+func DeleteFolder(folderID string) error {
+	// Unscoped() をつけると、論理削除ではなく物理削除（完全に消す）になります
+	// 構成によっては Unscoped なしでもOKですが、今回は確実に消すために付けます
+	result := database.DB.Unscoped().Delete(&models.Folder{}, "id = ?", folderID)
+	return result.Error
+}
+
+// GetWordsInTextbook: 教科書に含まれる全ての正解単語を取得する
+func GetWordsInTextbook(textbookID string) ([]string, error) {
+	var questions []models.Question
+	
+	// 指定された教科書のQuestionを全部取ってくる
+	result := database.DB.Where("textbook_id = ?", textbookID).Find(&questions)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	var words []string
+	for _, q := range questions {
+		words = append(words, q.Answer)
+	}
+	return words, nil
+}

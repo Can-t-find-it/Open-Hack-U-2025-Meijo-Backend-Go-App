@@ -24,6 +24,8 @@ import (
 type Question struct {
 	ID                 uint                `gorm:"primaryKey" json:"id"`
 	TextbookID         uint                `json:"textbookId"`
+	Textbook           Textbook            `gorm:"foreignKey:TextbookID" json:"textbook,omitempty"`
+	
 	Answer             string              `json:"answer"` // 正解 (例: "2", "ア")
 	
 	// 1つの問題に対して複数の「聞き方・選択肢」を持つ

@@ -262,26 +262,30 @@ func Generate4ChoiceWorkbookForQAndA(answers []string, pattern string) ([]dtos.R
 	return results, nil
 }
 
-// SaveQuestionToDB: 生成された問題を、階層構造DBに保存する
+
+// SaveQuestionToDB: 生成された問題を、教科書・問題・問題文の階層構造で保存する
 func SaveQuestionToDB(textbookID uint, item dtos.ResultItem, answer string) (uint, error) {
 
 	// 1. 親データ（Question）を作成
 	question := models.Question{
-		TextbookID: textbookID,
-		Answer:     answer, // 正解の単語
+		TextbookID: textbookID, // ここで教科書と紐付け
+		Answer:     answer,     // 正解の単語
 		// 2. 子データ（QuestionStatement）を作成
 		QuestionStatements: []models.QuestionStatement{
 			{
 				Statement: item.Question,    // 問題文
 				Explain:   item.Explanation, // 解説
-				Choices:   item.Options,     // 選択肢 (GORMがJSON化して保存)
+				Choices:   item.Options,     // 選択肢 (GORMが自動でJSON化)
 			},
 		},
 	}
 
 	// 3. DBに保存
-	result := database.DB.Create(&question)
-	return question.ID, result.Error
+	if err := database.DB.Create(&question).Error; err != nil {
+		return 0, err
+	}
+	
+	return question.ID, nil
 }
 
 // DeleteQuestionByID: モデルを指定して削除
@@ -290,4 +294,90 @@ func DeleteQuestionByID(id string) error {
 		return err
 	}
 	return nil
+}
+
+// 修正版: 教科書のタイプ（4択など）に合わせて、新しい切り口の問題を追加する
+func GenerateAndAddStatement(questionID uint) (*models.QuestionStatement, error) {
+	// 1. 親問題(Question)を取得（Textbookの情報も一緒に！）
+	var parentQuestion models.Question
+	
+	// Preload("Textbook") を追加して、教科書のタイプ（4択など）を知れるようにする
+	if err := database.DB.Preload("Textbook").Preload("QuestionStatements").First(&parentQuestion, questionID).Error; err != nil {
+		return nil, err
+	}
+
+	// 2. 既存の聞き方リストを作る（AIに「これとは違う聞き方にして」と伝えるため）
+	var existingTexts []string
+	for _, s := range parentQuestion.QuestionStatements {
+		existingTexts = append(existingTexts, s.Statement)
+	}
+
+	// 3. 教科書のタイプをパターンとして使用
+	// 例: textbook.Type が "4択問題形式" なら、それがそのままAIへの指示になる
+	pattern := parentQuestion.Textbook.Type
+
+	// 4. AIに生成を依頼
+	// existingTexts を渡すことで、AIは「これらと被らない、違う方向性の問題」を作ろうとします
+	resultItem, err := GenerateSingle4ChoiceQuestion(parentQuestion.Answer, pattern, existingTexts)
+	if err != nil {
+		return nil, err
+	}
+
+	// 5. 保存
+	newStatement := models.QuestionStatement{
+		QuestionID: questionID,
+		Statement:  resultItem.Question,
+		Explain:    resultItem.Explanation,
+		Choices:    resultItem.Options,
+	}
+
+	if err := database.DB.Create(&newStatement).Error; err != nil {
+		return nil, err
+	}
+
+	return &newStatement, nil
+}
+
+// CreateFolder: 新しいフォルダを作成する
+func CreateFolder(userID uint, name string) (*models.Folder, error) {
+	newFolder := models.Folder{
+		UserID:   userID,
+		Name:     name,
+		Progress: 0, // 最初は0%
+	}
+	
+	if err := database.DB.Create(&newFolder).Error; err != nil {
+		return nil, err
+	}
+	
+	return &newFolder, nil
+
+}
+
+// SuggestNewWordViaAI: 既存の単語リストを元に、AIに新しい単語を提案させる
+func SuggestNewWordViaAI(currentWords []string) (string, error) {
+	// 単語リストを文字列にする（例: "バイナリ, クラウド, サーバー"）
+	wordsStr := strings.Join(currentWords, ", ")
+
+	prompt := fmt.Sprintf(`
+	あなたはIT学習のアドバイザーです。
+	ある学生が以下の単語を学習しています。
+	学習済み単語: [%s]
+
+	この学生が次に覚えるべき、関連性の高い「新しい重要単語」を1つだけ提案してください。
+	
+	条件:
+	- 学習済み単語に含まれているものは除外してください。
+	- 出力は「単語のみ」にしてください（解説などは不要）。
+	- 日本語で答えてください。
+	`, wordsStr)
+
+	apiResp, err := callOpenAIAPI(prompt)
+	if err != nil {
+		return "", err
+	}
+
+	// 余計な空白などを除去して返す
+	suggestedWord := strings.TrimSpace(apiResp.Choices[0].Message.Content)
+	return suggestedWord, nil
 }

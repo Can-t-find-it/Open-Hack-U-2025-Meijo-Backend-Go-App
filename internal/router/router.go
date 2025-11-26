@@ -60,6 +60,8 @@ func SetupRouter() *gin.Engine {
 			protected.POST("/generate_problem", handlers.GenerateProblemHandler)
 
 			// === 教科書・フォルダ管理機能 ===
+            protected.POST("/folders", handlers.CreateFolderHandler)
+            protected.DELETE("/folders/:id", handlers.DeleteFolderHandler)
 			protected.GET("/textbooks", handlers.GetTextbooksHandler)
 			protected.POST("/textbooks", handlers.CreateTextbookHandler)
 			protected.GET("/textbook/:id", handlers.GetTextbookDetailHandler)
@@ -78,6 +80,9 @@ func SetupRouter() *gin.Engine {
 			// === フレンド機能 (今回マージしたご友人の機能) ===
 			// ご友人の実装に合わせて NewFriendGetAllHandler を使用
 			protected.POST("/getfriends", handlers.NewFriendGetAllHandler().GetAllFriends)
+
+            protected.POST("/generate_statement", handlers.GenerateAndAddStatementHandler)
+
 		}
 	}
 
