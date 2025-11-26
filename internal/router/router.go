@@ -6,11 +6,10 @@ import (
 	"github.com/gin-gonic/gin"
 	// プロジェクトのルートが 'hacku_2025_meijo' であることを前提
 	"hacku_2025_meijo/internal/handlers"
-	"hacku_2025_meijo/internal/middleware" // ← ご友人が追加したミドルウェア
+	"hacku_2025_meijo/internal/middleware"
 )
 
 // SetupRouter はアプリケーションのすべてのルーティングを設定します。
-// Ginのルーターインスタンスを返します。
 func SetupRouter() *gin.Engine {
 	// Ginのデフォルト設定で初期化
 	r := gin.Default()
@@ -35,7 +34,7 @@ func SetupRouter() *gin.Engine {
 	})
 	r.GET("/health", handlers.HealthCheck)
 
-	// 認証ハンドラーの初期化（ご友人のコード）
+	// 認証ハンドラーの初期化
 	authHandler := handlers.NewAuthHandler()
 
 	// --- APIルーティングの定義 ---
@@ -50,7 +49,6 @@ func SetupRouter() *gin.Engine {
 		// ------------------------------------
 		// 2. ログイン必須の機能 (AuthMiddleware適用)
 		// ------------------------------------
-		// 以下の機能を使うには、ログイン後に貰えるトークンが必要です
 		protected := api.Group("/")
 		protected.Use(middleware.AuthMiddleware())
 		{
@@ -61,23 +59,25 @@ func SetupRouter() *gin.Engine {
 			protected.POST("/generate_4_choice_workbook_for_q_and_a", handlers.Generate4ChoiceWorkbookForQAndAHandler)
 			protected.POST("/generate_problem", handlers.GenerateProblemHandler)
 
-			// === 教科書・フォルダ管理機能 (りょうさん作成) ===
+			// === 教科書・フォルダ管理機能 ===
 			protected.GET("/textbooks", handlers.GetTextbooksHandler)
 			protected.POST("/textbooks", handlers.CreateTextbookHandler)
 			protected.GET("/textbook/:id", handlers.GetTextbookDetailHandler)
 			protected.DELETE("/textbooks/:id", handlers.DeleteTextbookHandler)
-			protected.POST("/textbook_result", handlers.UpdateTextbookResultHandler) // 学習結果の保存
+			protected.POST("/textbook_result", handlers.UpdateTextbookResultHandler)
 
 			// === 問題・問題文の操作 ===
-			protected.POST("/question", handlers.AddQuestionHandler) // 問題保存
+			protected.POST("/question", handlers.AddQuestionHandler)
 			protected.DELETE("/question/:id", handlers.DeleteQuestionHandler)
 			protected.POST("/questionstatements", handlers.AddQuestionStatementHandler)
 			protected.DELETE("/questionstatements/:id", handlers.DeleteQuestionStatementHandler)
 
 			// === その他 ===
-			protected.GET("/word", handlers.SuggestWordHandler) // 単語提案
+			protected.GET("/word", handlers.SuggestWordHandler)
 
-            
+			// === フレンド機能 (今回マージしたご友人の機能) ===
+			// ご友人の実装に合わせて NewFriendGetAllHandler を使用
+			protected.POST("/getfriends", handlers.NewFriendGetAllHandler().GetAllFriends)
 		}
 	}
 
