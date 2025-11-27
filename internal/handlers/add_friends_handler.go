@@ -50,14 +50,14 @@ func (h *ChangeFriendsHandler) DeleteFriendsBatch(c *gin.Context) {
 		return
 	}
 
-	var input dtos.AddFriends
+	var input dtos.DeleteFriends
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "JSON形式が不正です"})
 		return
 	}
 
 	// 3. Serviceを一括削除モードで呼ぶ
-	err := h.service.DeleteFriendsBatch(userID, input.Friends)
+	err := h.service.DeleteFriendsBatch(userID, input.DeleteFriends)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
