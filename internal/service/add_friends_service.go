@@ -71,7 +71,7 @@ func (s *ChangeFriendsService) DeleteFriendsBatch(userID uint, targetFriendIDs [
 	return nil
 }
 
-func (s *ChangeFriendsService) GetFriends(userID uint) (*dtos.DeleteFriends, error) {
+func (s *ChangeFriendsService) GetFriends(userID uint) (*dtos.GetFriends, error) {
 	// 1. すでに登録済みの友達IDを取得する
 	var existingFriends []models.Friend
 	// "user_id = ?" で自分の友達データを検索し、"friend_user_id" カラムだけを取得する
@@ -86,8 +86,8 @@ func (s *ChangeFriendsService) GetFriends(userID uint) (*dtos.DeleteFriends, err
 	}
 
 	// 3. DTO（レスポンス用の箱）を作って返す
-	response := dtos.DeleteFriends{
-		DeleteFriends: friendIDs,
+	response := dtos.GetFriends{
+		GetFriends: friendIDs,
 	}
 
 	return &response, nil
