@@ -41,7 +41,7 @@ func (h *ChangeFriendsHandler) AddFriends(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// DeleteFriendsBatch : 複数人削除 (DELETE /api/friends)
+// 複数人削除 (DELETE /api/friends)
 func (h *ChangeFriendsHandler) DeleteFriendsBatch(c *gin.Context) {
 	// 1. 自分のID (トークン)
 	userID := c.GetUint("userID")
@@ -64,4 +64,18 @@ func (h *ChangeFriendsHandler) DeleteFriendsBatch(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "指定されたフレンドを削除しました"})
+}
+
+// フレンド一括取得
+func (h *ChangeFriendsHandler) GetFriends(c *gin.Context) {
+	userID := c.GetUint("userID")
+
+	response, err := h.service.GetFriends(userID)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		return
+	}
+
+	c.JSON(http.StatusOK, response)
 }

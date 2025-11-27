@@ -70,3 +70,25 @@ func (s *ChangeFriendsService) DeleteFriendsBatch(userID uint, targetFriendIDs [
 
 	return nil
 }
+
+func (s *ChangeFriendsService) GetFriends(userID uint) (*dtos.AddFriends, error) {
+	// 1. すでに登録済みの友達IDを取得する
+	var existingFriends []models.Friend
+	// "user_id = ?" で自分の友達データを検索し、"friend_user_id" カラムだけを取得する
+	if err := database.DB.Select("friend_user_id").Where("user_id = ?", userID).Find(&existingFriends).Error; err != nil {
+		return nil, err
+	}
+
+	var friendIDs []int
+	for _, f := range existingFriends {
+		// uint から int へ型変換して追加
+		friendIDs = append(friendIDs, int(f.FriendUserID))
+	}
+
+	// 3. DTO（レスポンス用の箱）を作って返す
+	response := dtos.AddFriends{
+		Friends: friendIDs,
+	}
+
+	return &response, nil
+}
