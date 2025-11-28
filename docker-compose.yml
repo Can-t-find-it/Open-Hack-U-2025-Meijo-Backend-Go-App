@@ -35,4 +35,8 @@ services:
 # ★追加: DBデータを永続化するためのボリューム
 volumes:
   go-cache:
+<<<<<<< HEAD
   postgres-data:
+=======
+  postgres-data:
+>>>>>>> friend-code

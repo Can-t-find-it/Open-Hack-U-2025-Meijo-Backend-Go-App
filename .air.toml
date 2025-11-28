@@ -9,7 +9,11 @@ root = "."
   # 1. go mod tidy: 新しいライブラリのimportに対応
   # 2. go build: /app/main という名前でビルド
   cmd = "go mod tidy && go build -o /app/main ./cmd/server"
+<<<<<<< HEAD
   
+=======
+
+>>>>>>> friend-code
   # ビルド後に実行するバイナリファイル
   bin = "/app/main"
 
@@ -17,6 +21,12 @@ root = "."
 [watch]
   # 監視するファイルの拡張子
   include_ext = ["go", "toml", "mod"]
+<<<<<<< HEAD
   
   # 監視から除外するディレクトリ
   exclude_dir = ["vendor", "tmp", "bin"]
+=======
+
+  # 監視から除外するディレクトリ
+  exclude_dir = ["vendor", "tmp", "bin"]
+>>>>>>> friend-code
