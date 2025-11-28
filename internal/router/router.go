@@ -38,6 +38,7 @@ func SetupRouter() *gin.Engine {
 	r.GET("/health", handlers.HealthCheck)
 
 	authHandler := handlers.NewAuthHandler()
+	friendHandler := handlers.NewAddFriendsHandler()
 
 	// --- APIルーティングの定義 ---
 	// ここに問題生成に関するすべてのエンドポイントを追加します
@@ -53,22 +54,26 @@ func SetupRouter() *gin.Engine {
 		protected := api.Group("/")
 		protected.Use(middleware.AuthMiddleware())
 		{
-			// 1. 単一問題生成 (GET)
-			protected.GET("/generate_4choice", handlers.GenerateQuestion4ChoiceHandler)
+			// // 1. 単一問題生成 (GET)
+			// protected.GET("/generate_4choice", handlers.GenerateQuestion4ChoiceHandler)
 
-			// 2. 単一問題生成 (POST) - 四択
-			protected.POST("/generate_question_4choice_api", handlers.GenerateQuestion4ChoiceAPIHandler)
+			// // 2. 単一問題生成 (POST) - 四択
+			// protected.POST("/generate_question_4choice_api", handlers.GenerateQuestion4ChoiceAPIHandler)
 
-			// 3. 複数問題生成 (POST) - 一問一答/穴埋め
-			protected.POST("/generate_workbook_for_q_and_a", handlers.GenerateWorkbookForQAndAHandler)
+			// // 3. 複数問題生成 (POST) - 一問一答/穴埋め
+			// protected.POST("/generate_workbook_for_q_and_a", handlers.GenerateWorkbookForQAndAHandler)
 
-			// 4. 複数問題生成 (POST) - 四択
-			protected.POST("/generate_4_choice_workbook_for_q_and_a", handlers.Generate4ChoiceWorkbookForQAndAHandler)
+			// // 4. 複数問題生成 (POST) - 四択
+			// protected.POST("/generate_4_choice_workbook_for_q_and_a", handlers.Generate4ChoiceWorkbookForQAndAHandler)
 
 			// 5. 統合問題生成 (POST)
 			protected.POST("/generate_problem", handlers.GenerateProblemHandler)
-      protected.POST("/question/", handlers.GenerateProblemHandler)
-      protected.DELETE("/question/:id", handlers.DeleteQuestionHandler)
+			protected.POST("/question/", handlers.GenerateProblemHandler)
+			protected.DELETE("/question/:id", handlers.DeleteQuestionHandler)
+
+			protected.POST("/friend/change", friendHandler.AddFriends)
+			protected.DELETE("/friend/change", friendHandler.DeleteFriendsBatch)
+			protected.GET("/friend/change", friendHandler.GetFriends)
 		}
 	}
 
