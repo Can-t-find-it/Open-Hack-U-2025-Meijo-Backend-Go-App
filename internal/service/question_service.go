@@ -15,8 +15,6 @@ import (
 	"hacku_2025_meijo/internal/models"
 )
 
-
-
 // OpenAI APIエンドポイント
 const openaiAPIURL = "https://api.openai.com/v1/chat/completions"
 
@@ -181,13 +179,13 @@ func generateQuestion4ChoicePrompt(answer string, pattern string, existingQuesti
 // parse4ChoiceOutput はモデルからの出力文字列を ResultItem 構造体にパースする
 func parse4ChoiceOutput(content string) (dtos.ResultItem, error) {
 	result := dtos.ResultItem{}
-	
+
 	lines := strings.Split(content, "\n")
-	
+
 	// 問題文と解説の抽出（最初の出現行を優先）
 	reQuestion := regexp.MustCompile(`問題[:：]\s*(.*)`)
 	reExplanation := regexp.MustCompile(`解説[:：]\s*(.*)`)
-	
+
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if result.Question == "" {
@@ -201,27 +199,27 @@ func parse4ChoiceOutput(content string) (dtos.ResultItem, error) {
 			}
 		}
 	}
-	
+
 	// 選択肢の抽出 (A: ... B: ... C: ... D: ...)
 	options := []string{}
 	// ラベルと本文を抽出する正規表現 (マルチバイト文字対応)
 	// (?:A|B|C|D|Ａ|Ｂ|Ｃ|Ｄ)[\)\.\）．:：\s]*([^A-DＡ-Ｄ\n]+)
-	reOption := regexp.MustCompile(`(?:[A-DＡ-Ｄ])[)\.）．:：\s]*([^A-DＡ-Ｄ\n]+)`) 
+	reOption := regexp.MustCompile(`(?:[A-DＡ-Ｄ])[)\.）．:：\s]*([^A-DＡ-Ｄ\n]+)`)
 	matches := reOption.FindAllStringSubmatch(content, -1)
-	
+
 	for _, match := range matches {
 		if len(match) > 1 {
 			options = append(options, strings.TrimSpace(match[1]))
 		}
 	}
-	
+
 	if len(options) < 4 {
 		return dtos.ResultItem{}, fmt.Errorf("モデル出力から4つの選択肢を抽出できませんでした")
 	}
-	
+
 	// 最大4つに限定
 	result.Options = options[:4]
-	
+
 	// 正解はResultItemには含めず、問題と選択肢を返します (元のPythonコードのロジックに合わせる)
 	// 正解はクライアント側で管理するか、別のフィールドで返す必要がありますが、
 	// ここではResultItemの定義に合わせて問題と選択肢のみを返します。
@@ -229,16 +227,15 @@ func parse4ChoiceOutput(content string) (dtos.ResultItem, error) {
 	return result, nil
 }
 
-
 // GenerateSingle4ChoiceQuestion は単語一つから四択問題を生成する
 func GenerateSingle4ChoiceQuestion(answer string, pattern string, existingQuestions []string) (dtos.ResultItem, error) {
 	prompt := generateQuestion4ChoicePrompt(answer, pattern, existingQuestions)
-	
+
 	apiResp, err := callOpenAIAPI(prompt)
 	if err != nil {
 		return dtos.ResultItem{}, err
 	}
-	
+
 	content := apiResp.Choices[0].Message.Content
 	return parse4ChoiceOutput(content)
 }
@@ -246,7 +243,7 @@ func GenerateSingle4ChoiceQuestion(answer string, pattern string, existingQuesti
 // Generate4ChoiceWorkbookForQAndA は単語リストから四択問題集を生成する
 func Generate4ChoiceWorkbookForQAndA(answers []string, pattern string) ([]dtos.ResultItem, error) {
 	results := []dtos.ResultItem{}
-	
+
 	// 単語ごとに問題を生成（Pythonコードのロジックを再現）
 	for _, answer := range answers {
 		// 既存の問題文リストは、ここでは空として扱う（単語単位で独立しているため）
@@ -261,7 +258,6 @@ func Generate4ChoiceWorkbookForQAndA(answers []string, pattern string) ([]dtos.R
 
 	return results, nil
 }
-
 
 // SaveQuestionToDB: 生成された問題を、教科書・問題・問題文の階層構造で保存する
 func SaveQuestionToDB(textbookID uint, item dtos.ResultItem, answer string) (uint, error) {
@@ -284,7 +280,7 @@ func SaveQuestionToDB(textbookID uint, item dtos.ResultItem, answer string) (uin
 	if err := database.DB.Create(&question).Error; err != nil {
 		return 0, err
 	}
-	
+
 	return question.ID, nil
 }
 
@@ -300,7 +296,7 @@ func DeleteQuestionByID(id string) error {
 func GenerateAndAddStatement(questionID uint) (*models.QuestionStatement, error) {
 	// 1. 親問題(Question)を取得（Textbookの情報も一緒に！）
 	var parentQuestion models.Question
-	
+
 	// Preload("Textbook") を追加して、教科書のタイプ（4択など）を知れるようにする
 	if err := database.DB.Preload("Textbook").Preload("QuestionStatements").First(&parentQuestion, questionID).Error; err != nil {
 		return nil, err
@@ -345,11 +341,11 @@ func CreateFolder(userID uint, name string) (*models.Folder, error) {
 		Name:     name,
 		Progress: 0, // 最初は0%
 	}
-	
+
 	if err := database.DB.Create(&newFolder).Error; err != nil {
 		return nil, err
 	}
-	
+
 	return &newFolder, nil
 
 }
