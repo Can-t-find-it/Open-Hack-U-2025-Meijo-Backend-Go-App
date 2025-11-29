@@ -100,6 +100,8 @@ func SetupRouter() *gin.Engine {
 
 			// フレンド問題集取得
 			protected.GET("/friend/textbooks", friendTextbookHandler.GetTextbooks)
+
+			protected.POST("/friend/textbooks", handlers.NewAddTextbookHandler().ImportTextbook)
 		}
 	}
 
