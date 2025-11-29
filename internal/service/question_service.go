@@ -85,15 +85,27 @@ func GenerateWorkbookForQAndA(answers []string, pattern string) ([]dtos.ResultIt
 	answerListStr, _ := json.Marshal(answers)
 
 	prompt := fmt.Sprintf(`
-	次の複数の単語に関する問題文，及び解説を作成してください．
-	解答形式は以下のようにしてください．それ以外の文字は完全に必要ありません．
-	パターンによって問題の種別を変えてください．パターンには”1問1答”,”穴埋め”の2種類が存在します．
+	あなたは厳格な問題作成マシーンです。
+	提供された「ターゲット単語リスト」の各単語に対して、【必ず1単語につき1問ずつ】問題を作成してください。
 
-	単語群：%s
-	パターン:%s
+	ターゲット単語リスト: %s
+	作成パターン: %s
 
-	// ... (プロンプトのフォーマット指示の続き) ...
+	【絶対守るべきルール】
+	1. 出力する問題数は、入力された単語数と完全に一致させること。
+	2. 出力の順番は、入力リストの順番と一致させること。
+	3. 1つの単語に対して複数の問題を作らないこと。
 
+	【出力フォーマット】
+	以下の形式（区切り文字 "（）"）のみを出力してください。挨拶は不要です。
+
+	---
+	問題文: (1つ目の単語の問題)
+	解説: (1つ目の単語の解説)
+	---
+	問題文: (2つ目の単語の問題)
+	解説: (2つ目の単語の解説)
+	---
 	`, string(answerListStr), pattern)
 
 	apiResp, err := callOpenAIAPI(prompt)
@@ -154,19 +166,20 @@ func generateQuestion4ChoicePrompt(answer string, pattern string, existingQuesti
 	あなたは教育用の問題作成アシスタントです。
 	与えられた単語を答えとする問題を1つ作成してください。
 
-	条件:
-	- 答えは必ず「%s」になること。
-	- 選択肢は必ず4つ用意してください（1つは正解、3つは誤答）。
-	- 出力フォーマットは厳守してください。
-	- 既存の問題文とは異なる新しい問題文を生成してください。
+	ターゲット単語: %s
+	作成パターン: %s
 	既存の問題文: %s
 
-	問題形式の指定:
-	- %s に従って問題を作成してください。
-	- "1問1答" の場合: 通常の四択問題形式。
-	- "穴埋め" の場合: 問題文の中に空欄（（ ））を入れて四択問題を作成。
-
+	【重要：作成パターンの定義】
+	- "4択問題形式" の場合: スタンダードなクイズを作成してください。（例：「～は何？」）
+	- "穴埋め4択" の場合: 問題文の中に空欄（）を作り、そこに入る言葉を答えさせてください。（例：「～は（）である」）
 	出力フォーマット（必ず守ってください）:
+
+	【条件】
+	- 選択肢は必ず4つ（正解1、誤答3）作成すること。
+	- 出力フォーマットを厳守すること。
+	
+	【出力フォーマット】
 	問題: ...
 	選択肢:
 	A: ...
@@ -314,7 +327,7 @@ func GenerateAndAddStatement(questionID uint) (*models.QuestionStatement, error)
 
 	// 3. 教科書のタイプをパターンとして使用
 	// 例: textbook.Type が "4択問題形式" なら、それがそのままAIへの指示になる
-	pattern := parentQuestion.Textbook.Type
+	pattern :=string (parentQuestion.Textbook.Type)
 
 	// 4. AIに生成を依頼
 	// existingTexts を渡すことで、AIは「これらと被らない、違う方向性の問題」を作ろうとします
@@ -355,29 +368,37 @@ func CreateFolder(userID uint, name string) (*models.Folder, error) {
 }
 
 // SuggestNewWordViaAI: 既存の単語リストを元に、AIに新しい単語を提案させる
-func SuggestNewWordViaAI(currentWords []string) (string, error) {
+func SuggestNewWordsViaAI(currentWords []string) ([]string, error) {
 	// 単語リストを文字列にする（例: "バイナリ, クラウド, サーバー"）
 	wordsStr := strings.Join(currentWords, ", ")
 
 	prompt := fmt.Sprintf(`
-	あなたはIT学習のアドバイザーです。
+	あなたは学習のアドバイザーです。
 	ある学生が以下の単語を学習しています。
 	学習済み単語: [%s]
 
-	この学生が次に覚えるべき、関連性の高い「新しい重要単語」を1つだけ提案してください。
+	この学生が次に覚えるべき、関連性の高い「新しい重要単語」を5つだけ提案してください。
 	
 	条件:
 	- 学習済み単語に含まれているものは除外してください。
-	- 出力は「単語のみ」にしてください（解説などは不要）。
+	- 出力は「単語1,単語2,単語3,単語4,単語5」のように、カンマ区切りのリストのみにしてください。（解説などは不要）。
 	- 日本語で答えてください。
 	`, wordsStr)
 
 	apiResp, err := callOpenAIAPI(prompt)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	// 余計な空白などを除去して返す
-	suggestedWord := strings.TrimSpace(apiResp.Choices[0].Message.Content)
-	return suggestedWord, nil
+	rawContent := strings.TrimSpace(apiResp.Choices[0].Message.Content)
+
+	rawContent = strings.ReplaceAll(rawContent, "、", ",")
+	
+	rawList := strings.Split(rawContent, ",")
+	var resultList []string
+	for _, w := range rawList {
+		resultList = append(resultList, strings.TrimSpace(w))
+	}
+
+	return resultList, nil
 }

@@ -7,6 +7,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"hacku_2025_meijo/internal/dtos"
 	"hacku_2025_meijo/internal/service"
+	"hacku_2025_meijo/internal/models"
+	"hacku_2025_meijo/internal/database"
 )
 
 // ==========================================
@@ -56,7 +58,7 @@ func GenerateQuestion4ChoiceHandler(c *gin.Context) {
 	})
 }
 
-// ---- POST 問題生成・保存 (統合ハンドラ) ----
+// ---- POST 問題生成・保存 (教科書の設定に従う版) ----
 func GenerateProblemHandler(c *gin.Context) {
 	var body dtos.RequestBody
 	if err := c.ShouldBindJSON(&body); err != nil {
@@ -64,87 +66,88 @@ func GenerateProblemHandler(c *gin.Context) {
 		return
 	}
 
-	if body.Pattern == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "`pattern` is required"})
-		return
-	}
-
-	// 教科書IDがないと保存できないのでエラーにする
+	// 1. 教科書IDのチェック
 	if body.TextbookID == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "textbookId is required"})
 		return
 	}
 
+	// 2. DBから教科書の情報を取得して、Type（形式）を確認する
+	var textbook models.Textbook
+	// modelsパッケージのインポートが必要です
+	if err := database.DB.First(&textbook, body.TextbookID).Error; err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Textbook not found"})
+		return
+	}
+
+	// 教科書の設定を「パターン」として取得
+	pattern := string(textbook.Type) 
+
 	var resultItems []dtos.ResultItem
+	var targetAnswers []string
 	var err error
 
-	// -----------------------
-	// ① 生成ロジック
-	// -----------------------
-	if body.Pattern == "四択" {
-		if body.Answer != "" {
-			var item dtos.ResultItem
-			item, err = service.GenerateSingle4ChoiceQuestion(body.Answer, body.Pattern, body.ExistingQuestions)
-			resultItems = append(resultItems, item)
-		} else if len(body.Answers) > 0 {
-			resultItems, err = service.Generate4ChoiceWorkbookForQAndA(body.Answers, body.Pattern)
-		} else {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "`answer` or `answers` is required for 4choice"})
-			return
-		}
+	// 3. 単語リストの整理
+	if len(body.Answers) > 0 {
+		targetAnswers = body.Answers
+	} else if body.Answer != "" {
+		targetAnswers = []string{body.Answer}
 	} else {
-		// ② 一問一答・穴埋め
-		if body.Answer != "" {
-			resultItems, err = service.GenerateWorkbookForQAndA([]string{body.Answer}, body.Pattern)
-		} else if len(body.Answers) > 0 {
-			resultItems, err = service.GenerateWorkbookForQAndA(body.Answers, body.Pattern)
-		} else {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "`answer` or `answers` is required"})
-			return
-		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": "answer or answers is required"})
+		return
+	}
+
+	// 4. 生成ロジック (教科書のタイプで分岐)
+	// 定数 (models.Type...) を使って判定します
+	switch models.TextbookType(pattern) {
+	
+	case models.Type4Choice, models.TypeFillIn4Choice:
+		// --- 4択系 (普通の4択 or 穴埋め4択) ---
+		// Generate4ChoiceWorkbookForQAndA は pattern 文字列をそのままAIへの指示に使います
+		resultItems, err = service.Generate4ChoiceWorkbookForQAndA(targetAnswers, pattern)
+
+	case models.TypeFillIn, models.TypeInput:
+		// --- 入力系 (穴埋め入力 or 完全入力) ---
+		// GenerateWorkbookForQAndA は pattern 文字列をAIへの指示に使います
+		resultItems, err = service.GenerateWorkbookForQAndA(targetAnswers, pattern)
+
+	default:
+		// 未知のタイプの場合
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Unsupported textbook type: " + pattern})
+		return
 	}
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "AI Generation Error: " + err.Error()})
 		return
 	}
 
 	if len(resultItems) == 0 {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "問題生成に失敗しました"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成された問題が0件でした"})
 		return
 	}
 
-	// -----------------------
-	// ③ DB保存 (りょうさんの階層構造へ)
-	// -----------------------
+	// 5. DB保存
 	ids := []int{}
-	if body.TextbookID == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "textbookId is required for saving"})
-		return
-	}
 
-	
 	for i, item := range resultItems {
-		// 正解の単語を特定（単体生成なら body.Answer、複数なら配列から）
+		
 		currentAnswer := ""
-		if body.Answer != "" {
-			currentAnswer = body.Answer
-		} else if i < len(body.Answers) {
-			currentAnswer = body.Answers[i]
+		if i < len(targetAnswers) {
+			currentAnswer = targetAnswers[i]
 		}
 
-		// ★修正: 教科書IDと正解を渡して保存
+
 		id, err := service.SaveQuestionToDB(body.TextbookID, item, currentAnswer)
 		if err != nil {
-			// エラー内容（err.Error()）を表示するようにしておくと原因がわかりやすいです
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "DB保存に失敗: " + err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "DB保存エラー: " + err.Error()})
 			return
 		}
 		ids = append(ids, int(id))
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message":   "問題生成＆保存成功",
+
 		"ids":       ids,
 		"questions": resultItems,
 	})
@@ -220,16 +223,24 @@ func GenerateWorkbookForQAndAHandler(c *gin.Context) {
 // 2. 教科書・DB管理機能
 // ==========================================
 
-// GET /api/textbooks - 教科書一覧取得
+// GET /api/textbooks - 自分の問題集一覧取得
 func GetTextbooksHandler(c *gin.Context) {
-	userID := uint(1) // テスト用（本来はJWTから取得）
+	// 認証機能を入れたので、本来はここ（Context）からユーザーIDを取ります
+	// 今はテスト用に 1 固定、もしくは middleware から取得する形
+	// userID := c.GetUint("userId") // ミドルウェア実装次第
+	userID := uint(1) // 仮置き
 
 	result, err := service.GetUserTextbooks(userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"folder": result})
+
+	// ★ここで JSON の形を決めています
+	// { "folder": [ ... ] } という形になります
+	c.JSON(http.StatusOK, gin.H{
+		"folder": result,
+	})
 }
 
 // POST /api/textbooks - 教科書作成
@@ -365,16 +376,14 @@ func DeleteQuestionStatementHandler(c *gin.Context) {
 
 // GET /api/word - 覚えたい単語提案 (AI版)
 func SuggestWordHandler(c *gin.Context) {
-	// クエリパラメータから教科書IDを取得 (?textbook_id=5)
+
 	textbookID := c.Query("textbook_id")
 
-	var suggestedWord string
+	var suggestedWords []string // 配列に変更
 	var err error
 
 	if textbookID != "" {
-		// ★パターンA: 教科書IDがある場合 → その中身を分析してAIが提案
-		
-		// 1. 教科書の中の単語を取得
+		// ★AI提案ルート
 		currentWords, err := service.GetWordsInTextbook(textbookID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch textbook words"})
@@ -382,29 +391,26 @@ func SuggestWordHandler(c *gin.Context) {
 		}
 
 		if len(currentWords) == 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Textbook is empty"})
-			return
-		}
-
-		// 2. AIに提案させる
-		suggestedWord, err = service.SuggestNewWordViaAI(currentWords)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "AI suggestion failed"})
-			return
+			// 教科書が空ならランダムに3つ返す
+			suggestedWords, err = service.GetRandomSuggestedWords(3)
+		} else {
+			// 教科書があるならAIに3つ考えさせる
+			suggestedWords, err = service.SuggestNewWordsViaAI(currentWords)
 		}
 
 	} else {
-		// ★パターンB: 指定がない場合 → 既存のランダム取得（以前のロジック）
-		suggestedWord, err = service.GetSuggestedWord()
-		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "No words found in DB"})
-			return
-		}
+		// ★完全ランダムルート（教科書指定なし）
+		suggestedWords, err = service.GetRandomSuggestedWords(3)
 	}
 
-	// 返す
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Suggestion failed: " + err.Error()})
+		return
+	}
+
+	// 配列で返す { "words": ["A", "B", "C"] }
 	c.JSON(http.StatusOK, gin.H{
-		"word": suggestedWord,
+		"words": suggestedWords,
 	})
 }
 // POST /api/generate_statement

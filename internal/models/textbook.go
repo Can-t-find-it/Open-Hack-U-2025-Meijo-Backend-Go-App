@@ -3,6 +3,8 @@ package models
 import (
 	"time"
 )
+type TextbookType string
+// 定数をその型で定義する
 
 // Folder: 科目や資格ごとのフォルダ
 // 例: "基本情報技術者試験", "TOEIC"
@@ -25,8 +27,9 @@ type Textbook struct {
 	ID              uint       `gorm:"primaryKey" json:"id"`
 	FolderID        uint       `json:"folderId"`
 	Name            string     `json:"name"`
-	Type            string     `json:"type"`            // "4択問題形式" など
+	Type            TextbookType `json:"type"`            // "4択問題形式" など
 	StudyMaterialID *uint      `json:"studyMaterialId"` // 元資料ID(任意)
+	
 	
 	// ↓【追加】仕様変更に対応
 	// 過去のスコア履歴 (例: [80.5, 90.0, ...])
