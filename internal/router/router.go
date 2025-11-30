@@ -57,12 +57,6 @@ func SetupRouter() *gin.Engine {
 		protected := api.Group("/")
 		protected.Use(middleware.AuthMiddleware())
 		{
-			// === AI問題生成機能 ===
-			// protected.GET("/generate_4choice", handlers.GenerateQuestion4ChoiceHandler)
-			// protected.POST("/generate_question_4choice_api", handlers.GenerateQuestion4ChoiceAPIHandler)
-			// protected.POST("/generate_workbook_for_q_and_a", handlers.GenerateWorkbookForQAndAHandler)
-			// protected.POST("/generate_4_choice_workbook_for_q_and_a", handlers.Generate4ChoiceWorkbookForQAndAHandler)
-
 			// 問題文生成
 			protected.POST("/generate_statement", handlers.GenerateAndAddStatementHandler)
 			// 総合問題生成
@@ -95,13 +89,17 @@ func SetupRouter() *gin.Engine {
 			protected.DELETE("/friend/change", friendChangeHandler.DeleteFriendsBatch)
 			protected.GET("/friend/change", friendChangeHandler.GetFriends)
 
-			// フレンド学習ログ
 			protected.POST("/friend/studylog", friendStudyLogHandler.GetFriendLog)
+		
+
 
 			// フレンド問題集取得
 			protected.GET("/friend/textbooks", friendTextbookHandler.GetTextbooks)
-
 			protected.POST("/friend/textbooks", handlers.NewAddTextbookHandler().ImportTextbook)
+
+			// === ペナルティ通知機能 ===
+			protected.POST("/penalty/check", handlers.NewPenaltyHandler().CheckPenalty)
+
 		}
 	}
 
