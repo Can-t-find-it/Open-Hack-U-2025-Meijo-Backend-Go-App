@@ -32,11 +32,12 @@ type Folder struct {
 // Textbook: 具体的な問題集
 // 例: "第1章 基礎理論", "過去問2023秋"
 type Textbook struct {
-	ID              uint         `gorm:"primaryKey" json:"id"`
-	FolderID        uint         `json:"folderId"`
-	Name            string       `json:"name"`
+	ID              uint   `gorm:"primaryKey" json:"id"`
+	FolderID        uint   `json:"folderId"`
+	UserID          uint   `json:"user_id"` // 上野追加部分．この問題集の所有者ID
+	Name            string `json:"name"`
 	Type            TextbookType `json:"type"`            // "4択問題形式" など
-	StudyMaterialID *uint        `json:"studyMaterialId"` // 元資料ID(任意)
+	StudyMaterialID *uint  `json:"studyMaterialId"` // 元資料ID(任意)
 
 	// ↓【追加】仕様変更に対応
 	// 過去のスコア履歴 (例: [80.5, 90.0, ...])

@@ -3,10 +3,10 @@ package router
 import (
 	"net/http"
 
-	"github.com/gin-gonic/gin"
-	// プロジェクトのルートが 'hacku_2025_meijo' であることを前提
 	"hacku_2025_meijo/internal/handlers"
 	"hacku_2025_meijo/internal/middleware"
+
+	"github.com/gin-gonic/gin"
 )
 
 // SetupRouter はアプリケーションのすべてのルーティングを設定します。
@@ -34,9 +34,13 @@ func SetupRouter() *gin.Engine {
 	})
 	r.GET("/health", handlers.HealthCheck)
 
-	// 認証ハンドラーの初期化
+	// --- ハンドラーの初期化 (ここでまとめて行う) ---
 	authHandler := handlers.NewAuthHandler()
-	friendHandler := handlers.NewAddFriendsHandler()
+	friendChangeHandler := handlers.NewAddFriendsHandler()
+	friendGetAllHandler := handlers.NewFriendGetAllHandler()
+	friendStudyLogHandler := handlers.NewFriendStudyLogHandler()
+	// ★追加: 教科書取得ハンドラを初期化
+	friendTextbookHandler := handlers.NewGetTextBooksHandler()
 
 	// --- APIルーティングの定義 ---
 	api := r.Group("/api")
@@ -53,16 +57,14 @@ func SetupRouter() *gin.Engine {
 		protected := api.Group("/")
 		protected.Use(middleware.AuthMiddleware())
 		{
-			// === AI問題生成機能 ===
-// 			protected.GET("/generate_4choice", handlers.GenerateQuestion4ChoiceHandler)
-// 			protected.POST("/generate_question_4choice_api", handlers.GenerateQuestion4ChoiceAPIHandler)
-// 			protected.POST("/generate_workbook_for_q_and_a", handlers.GenerateWorkbookForQAndAHandler)
-// 			protected.POST("/generate_4_choice_workbook_for_q_and_a", handlers.Generate4ChoiceWorkbookForQAndAHandler)
-// 			protected.POST("/generate_problem", handlers.GenerateProblemHandler)
+			// 問題文生成
+			protected.POST("/generate_statement", handlers.GenerateAndAddStatementHandler)
+			// 総合問題生成
+			protected.POST("/generate_problem", handlers.GenerateProblemHandler)
 
 			// === 教科書・フォルダ管理機能 ===
-            protected.POST("/folders", handlers.CreateFolderHandler)
-            protected.DELETE("/folders/:id", handlers.DeleteFolderHandler)
+			protected.POST("/folders", handlers.CreateFolderHandler)
+			protected.DELETE("/folders/:id", handlers.DeleteFolderHandler)
 			protected.GET("/textbooks", handlers.GetTextbooksHandler)
 			protected.POST("/textbooks", handlers.CreateTextbookHandler)
 			protected.GET("/textbook/:id", handlers.GetTextbookDetailHandler)
@@ -78,20 +80,28 @@ func SetupRouter() *gin.Engine {
 			// === その他 ===
 			protected.GET("/word", handlers.SuggestWordHandler)
 
-			// === フレンド機能 (今回マージしたご友人の機能) ===
-			// ご友人の実装に合わせて NewFriendGetAllHandler を使用
-			protected.POST("/getfriends", handlers.NewFriendGetAllHandler().GetAllFriends)
+			// === フレンド機能 ===
+			// フレンド一覧取得
+			protected.POST("/getfriends", friendGetAllHandler.GetAllFriends)
 
-            protected.POST("/generate_statement", handlers.GenerateAndAddStatementHandler)
+			// フレンド追加・削除・取得
+			protected.POST("/friend/change", friendChangeHandler.AddFriends)
+			protected.DELETE("/friend/change", friendChangeHandler.DeleteFriendsBatch)
+			protected.GET("/friend/change", friendChangeHandler.GetFriends)
 
-			protected.POST("/generate_problem", handlers.GenerateProblemHandler)
+			//protected.POST("/generate_problem", handlers.GenerateProblemHandler)
 			//protected.POST("/question/", handlers.GenerateProblemHandler)
 			//protected.DELETE("/question/:id", handlers.DeleteQuestionHandler)
+			protected.POST("/friend/studylog", friendStudyLogHandler.GetFriendLog)
+		
 
-			protected.POST("/friend/change", friendHandler.AddFriends)
-			protected.DELETE("/friend/change", friendHandler.DeleteFriendsBatch)
-			protected.GET("/friend/change", friendHandler.GetFriends)
-			protected.POST("/friend/studylog", handlers.NewFriendStudyLogHandler().GetFriendLog)
+
+			// フレンド問題集取得
+			protected.GET("/friend/textbooks", friendTextbookHandler.GetTextbooks)
+			protected.POST("/friend/textbooks", handlers.NewAddTextbookHandler().ImportTextbook)
+
+			// === ペナルティ通知機能 ===
+			protected.POST("/penalty/check", handlers.NewPenaltyHandler().CheckPenalty)
 
             //=== PDFアップロード機能 ===
             protected.POST("/upload_pdf", handlers.UploadPDFHandler)
