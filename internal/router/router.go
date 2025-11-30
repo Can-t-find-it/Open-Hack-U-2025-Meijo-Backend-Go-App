@@ -85,13 +85,16 @@ func SetupRouter() *gin.Engine {
             protected.POST("/generate_statement", handlers.GenerateAndAddStatementHandler)
 
 			protected.POST("/generate_problem", handlers.GenerateProblemHandler)
-			protected.POST("/question/", handlers.GenerateProblemHandler)
-			protected.DELETE("/question/:id", handlers.DeleteQuestionHandler)
+			//protected.POST("/question/", handlers.GenerateProblemHandler)
+			//protected.DELETE("/question/:id", handlers.DeleteQuestionHandler)
 
 			protected.POST("/friend/change", friendHandler.AddFriends)
 			protected.DELETE("/friend/change", friendHandler.DeleteFriendsBatch)
 			protected.GET("/friend/change", friendHandler.GetFriends)
 			protected.POST("/friend/studylog", handlers.NewFriendStudyLogHandler().GetFriendLog)
+
+            //=== PDFアップロード機能 ===
+            protected.POST("/upload_pdf", handlers.UploadPDFHandler)
 
 		}
 	}

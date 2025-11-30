@@ -12,6 +12,7 @@ type RequestBody struct {
 }
 
 type ResultItem struct {
+    ID          uint     `json:"id"`
     Question    string   `json:"question"`
     Options     []string `json:"options,omitempty"`       // 四択のみ
     Explanation string   `json:"explanation"`

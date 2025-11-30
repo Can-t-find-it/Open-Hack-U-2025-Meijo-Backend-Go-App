@@ -276,25 +276,37 @@ func Generate4ChoiceWorkbookForQAndA(answers []string, pattern string) ([]dtos.R
 }
 
 
-// SaveQuestionToDB: 生成された問題を、教科書・問題・問題文の階層構造で保存する
+// SaveQuestionToDB: 生成された問題を保存する（重複チェック付き）
 func SaveQuestionToDB(textbookID uint, item dtos.ResultItem, answer string) (uint, error) {
 
-	// 1. 親データ（Question）を作成
-	question := models.Question{
-		TextbookID: textbookID, // ここで教科書と紐付け
-		Answer:     answer,     // 正解の単語
-		// 2. 子データ（QuestionStatement）を作成
-		QuestionStatements: []models.QuestionStatement{
-			{
-				Statement: item.Question,    // 問題文
-				Explain:   item.Explanation, // 解説
-				Choices:   item.Options,     // 選択肢 (GORMが自動でJSON化)
-			},
-		},
+	// 1. まず、同じ教科書の中に「同じ答え(Answer)」の問題が既にないか探す
+	var question models.Question
+	
+	// "textbook_id" と "answer" が一致するものを探す
+	result := database.DB.Where("textbook_id = ? AND answer = ?", textbookID, answer).First(&question)
+
+	if result.Error != nil {
+		// 見つからなかった場合（新規作成）
+		question = models.Question{
+			TextbookID: textbookID,
+			Answer:     answer,
+		}
+		// まず親を作る
+		if err := database.DB.Create(&question).Error; err != nil {
+			return 0, err
+		}
 	}
 
-	// 3. DBに保存
-	if err := database.DB.Create(&question).Error; err != nil {
+	// 2. 子データ（QuestionStatement）を追加する
+	// 親のID (question.ID) を紐付ける
+	newStatement := models.QuestionStatement{
+		QuestionID: question.ID,
+		Statement:  item.Question,
+		Explain:    item.Explanation,
+		Choices:    item.Options,
+	}
+
+	if err := database.DB.Create(&newStatement).Error; err != nil {
 		return 0, err
 	}
 	

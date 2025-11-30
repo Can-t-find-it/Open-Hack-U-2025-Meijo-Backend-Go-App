@@ -128,7 +128,7 @@ func GenerateProblemHandler(c *gin.Context) {
 	}
 
 	// 5. DB保存
-	ids := []int{}
+	var finalResponse []dtos.ResultItem
 
 	for i, item := range resultItems {
 		
@@ -143,13 +143,12 @@ func GenerateProblemHandler(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "DB保存エラー: " + err.Error()})
 			return
 		}
-		ids = append(ids, int(id))
+		item.ID = id // 生成されたIDをセット
+		finalResponse = append(finalResponse, item)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-
-		"ids":       ids,
-		"questions": resultItems,
+		"questions": finalResponse,
 	})
 }
 
