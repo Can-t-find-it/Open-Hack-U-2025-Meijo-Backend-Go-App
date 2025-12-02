@@ -63,8 +63,8 @@ func SetupRouter() *gin.Engine {
 			protected.POST("/generate_problem", handlers.GenerateProblemHandler)
 
 			// === 教科書・フォルダ管理機能 ===
-			protected.POST("/folders", handlers.CreateFolderHandler)
-			protected.DELETE("/folders/:id", handlers.DeleteFolderHandler)
+      protected.POST("/folders", handlers.CreateFolderHandler)
+      protected.DELETE("/folders", handlers.DeleteFolderHandler)
 			protected.GET("/textbooks", handlers.GetTextbooksHandler)
 			protected.POST("/textbooks", handlers.CreateTextbookHandler)
 			protected.GET("/textbook/:id", handlers.GetTextbookDetailHandler)
