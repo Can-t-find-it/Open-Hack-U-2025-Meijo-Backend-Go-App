@@ -64,18 +64,18 @@ func SetupRouter() *gin.Engine {
 
 			// === 教科書・フォルダ管理機能 ===
 			protected.POST("/folders", handlers.CreateFolderHandler)
-			protected.DELETE("/folders/:id", handlers.DeleteFolderHandler)
+			protected.DELETE("/folders", handlers.DeleteFoldersBatchHandler)
 			protected.GET("/textbooks", handlers.GetTextbooksHandler)
 			protected.POST("/textbooks", handlers.CreateTextbookHandler)
 			protected.GET("/textbook/:id", handlers.GetTextbookDetailHandler)
-			protected.DELETE("/textbooks/:id", handlers.DeleteTextbookHandler)
+			protected.DELETE("/textbooks", handlers.DeleteTextbooksBatchHandler)
 			protected.POST("/textbook_result", handlers.UpdateTextbookResultHandler)
 
 			// === 問題・問題文の操作 ===
 			protected.POST("/question", handlers.AddQuestionHandler)
-			protected.DELETE("/question/:id", handlers.DeleteQuestionHandler)
+			protected.DELETE("/questions", handlers.DeleteQuestionsBatchHandler)
 			protected.POST("/questionstatements", handlers.AddQuestionStatementHandler)
-			protected.DELETE("/questionstatements/:id", handlers.DeleteQuestionStatementHandler)
+			protected.DELETE("/questionstatements", handlers.DeleteQuestionStatementsBatchHandler)
 
 			// === その他 ===
 			protected.GET("/word", handlers.SuggestWordHandler)

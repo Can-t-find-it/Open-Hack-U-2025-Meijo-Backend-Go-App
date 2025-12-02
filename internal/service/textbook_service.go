@@ -155,10 +155,12 @@ func AddQuestionToTextbook(textbookID uint, item dtos.ResultItem, answer string)
 // 未実装だった削除・追加機能 (Question / QuestionStatement)
 // ----------------------------------------------------
 
-// DeleteQuestion: 問題（親）を削除
-// これを消すと、紐付いている問題文（子）も全部消えます（CASCADE設定のため）
-func DeleteQuestion(questionID string) error {
-	result := database.DB.Delete(&models.Question{}, "id = ?", questionID)
+// DeleteQuestionsBatch: 複数の問題を一括削除する
+// (単体削除も、IDが1つのリストとしてこれを呼べばOK)
+func DeleteQuestionsBatch(questionIDs []string) error {
+	// 指定されたIDリストの問題をまとめて削除
+	// OnDelete:CASCADE設定により、紐付くQuestionStatementも自動で消えます
+	result := database.DB.Unscoped().Where("id IN ?", questionIDs).Delete(&models.Question{})
 	return result.Error
 }
 
@@ -176,8 +178,8 @@ func AddQuestionStatement(questionID uint, statement string, explain string, cho
 }
 
 // DeleteQuestionStatement: 特定の問題文（子）だけを削除する
-func DeleteQuestionStatement(statementID string) error {
-	result := database.DB.Delete(&models.QuestionStatement{}, "id = ?", statementID)
+func DeleteQuestionStatementsBatch(statementIDs []string) error {
+	result := database.DB.Delete(&models.QuestionStatement{}, "id IN ?", statementIDs)
 	return result.Error
 }
 
@@ -214,10 +216,10 @@ func UpdateTextbookStatus(textbookID string, newScore float64) error {
 }
 
 // DeleteFolder: フォルダを削除する（中身も全消去）
-func DeleteFolder(folderID string) error {
+func DeleteFoldersBatch(folderIDs []string) error {
 	// Unscoped() をつけると、論理削除ではなく物理削除（完全に消す）になります
 	// 構成によっては Unscoped なしでもOKですが、今回は確実に消すために付けます
-	result := database.DB.Unscoped().Delete(&models.Folder{}, "id = ?", folderID)
+	result := database.DB.Unscoped().Delete(&models.Folder{}, "id IN ?", folderIDs)
 	return result.Error
 }
 
@@ -238,10 +240,10 @@ func GetWordsInTextbook(textbookID string) ([]string, error) {
 	return words, nil
 }
 
-func DeleteTextbook(textbookID string) error {
+func DeleteTextbooksBatch(textbookIDs []string) error {
 	// 指定されたIDのTextbookを削除
 	// OnDelete:CASCADE設定があるため、中身の問題なども連鎖して削除されます
-	if err := database.DB.Delete(&models.Textbook{}, "id = ?", textbookID).Error; err != nil {
+	if err := database.DB.Delete(&models.Textbook{}, "id IN ?", textbookIDs).Error; err != nil {
 		return err
 	}
 	return nil

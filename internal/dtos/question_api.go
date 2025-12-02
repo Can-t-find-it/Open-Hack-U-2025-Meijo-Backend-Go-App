@@ -3,7 +3,7 @@ package dtos
 // --- 1. APIエンドポイントの入出力構造体 (DTOs) ---
 
 type RequestBody struct {
-    Answers           []string `json:"answers"`             // 複数解答用
+    Answers           []string `json:"words"`             // 複数解答用
     Answer            string   `json:"answer"`              // 単体問題用
     Pattern           string   `json:"pattern"`             // 問題形式
     ExistingQuestions []string `json:"existing_questions"`

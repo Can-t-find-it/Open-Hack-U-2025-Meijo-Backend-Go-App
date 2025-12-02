@@ -4,44 +4,67 @@ import (
 	"fmt"
 	"mime/multipart"
 	"strings"
+	"sync"
 
-	"github.com/ledongthuc/pdf"
+	//"github.com/ledongthuc/pdf"
+	"github.com/dslipak/pdf"
 )
 
-// ExtractTextFromPDF: アップロードされたPDFファイルからテキストを抽出する
+// ExtractTextFromPDF: PDFを並行処理で爆速で読み込む
 func ExtractTextFromPDF(file *multipart.FileHeader) (string, error) {
-	// ファイルを開く
 	f, err := file.Open()
 	if err != nil {
 		return "", err
 	}
 	defer f.Close()
 
-	// PDFリーダーを作成 (ファイルサイズが必要)
 	r, err := pdf.NewReader(f, file.Size)
 	if err != nil {
 		return "", err
 	}
 
-	var content string
-	
-	// ページ数分ループしてテキストを取得
-	// (全部読むと長すぎる場合は、最初の5ページだけにするなどの制限も可)
 	totalPage := r.NumPage()
-	for pageIndex := 1; pageIndex <= totalPage; pageIndex++ {
-		p := r.Page(pageIndex)
-		if p.V.IsNull() {
-			continue
-		}
-		
-		text, err := p.GetPlainText(nil)
-		if err != nil {
-			continue
-		}
-		content += text + "\n"
+	
+	// 同時に読むページ数の上限を設定（多すぎるとメモリ不足になる）
+	limitPage := 20
+	if totalPage > limitPage {
+		totalPage = limitPage
 	}
 
-	return content, nil
+	// 各ページのテキストを保存する配列（順番を崩さないため、あらかじめ枠を作る）
+	pageTexts := make([]string, totalPage)
+	
+	var wg sync.WaitGroup // 完了待ち用の同期オブジェクト
+
+	// ページごとに「分身（Goroutine）」を作って走らせる
+	for i := 0; i < totalPage; i++ {
+		wg.Add(1)
+		
+		// go func(...) で別スレッド起動！
+		go func(index int) {
+			defer wg.Done() // 終わったら報告
+
+			// PDFのページ番号は 1 始まり
+			p := r.Page(index + 1)
+			if p.V.IsNull() {
+				return
+			}
+			
+			text, err := p.GetPlainText(nil)
+			if err != nil {
+				return
+			}
+			
+			// 配列の自分の場所に書き込む（ここは競合しないので安全）
+			pageTexts[index] = text
+		}(i)
+	}
+
+	// 全員の作業が終わるのを待つ
+	wg.Wait()
+
+	// バラバラのテキストを結合する
+	return strings.Join(pageTexts, "\n"), nil
 }
 
 // ExtractKeywordsFromText: テキストデータをAIに渡して、重要単語を抽出させる
