@@ -1,1 +1,5 @@
 *.env
+deploy_key
+deploy_key.pub
+meijo-hackathon-2025.pem
+.terraform/
