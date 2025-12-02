@@ -33,6 +33,7 @@ func (h *ChangeFriendsHandler) AddFriends(c *gin.Context) {
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "IDは数字で指定してください"})
+		return
 	}
 
 	var FriendID_slice []int
@@ -63,16 +64,23 @@ func (h *ChangeFriendsHandler) DeleteFriendsBatch(c *gin.Context) {
 		return
 	}
 
-	var input dtos.DeleteFriends
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "JSON形式が不正です"})
+	idStr := c.Param("id")
+
+	deleteId, err := strconv.Atoi(idStr)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "IDは数字で指定してください"})
 		return
 	}
 
+	var deleteIdSlice []int
+
+	deleteIdSlice = append(deleteIdSlice, deleteId)
+
 	// 3. Serviceを一括削除モードで呼ぶ
-	err := h.service.DeleteFriendsBatch(userID, input.DeleteFriends)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	error := h.service.DeleteFriendsBatch(userID, deleteIdSlice)
+	if error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": error.Error()})
 		return
 	}
 
