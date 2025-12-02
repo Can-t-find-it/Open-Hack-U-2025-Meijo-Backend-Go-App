@@ -4,6 +4,7 @@ import (
 	"hacku_2025_meijo/internal/dtos"
 	"hacku_2025_meijo/internal/service"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -26,13 +27,25 @@ func (h *ChangeFriendsHandler) AddFriends(c *gin.Context) {
 		return
 	}
 
-	var input dtos.AddFriends
+	idStr := c.Param("id")
 
-	if err := c.ShouldBindBodyWithJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "JSONが間違っています" + err.Error()})
-		return
+	friendID, err := strconv.Atoi(idStr)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "IDは数字で指定してください"})
 	}
-	response, err := h.service.AddFriends(userID, input)
+
+	var FriendID_slice []int
+
+	FriendID_slice = append(FriendID_slice, friendID)
+
+	var Finally_FriendID dtos.AddFriends
+
+	Finally_FriendID = dtos.AddFriends{
+		Friends: FriendID_slice,
+	}
+
+	response, err := h.service.AddFriends(userID, Finally_FriendID)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
