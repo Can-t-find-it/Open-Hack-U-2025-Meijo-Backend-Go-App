@@ -38,6 +38,8 @@ func SetupRouter() *gin.Engine {
 	authHandler := handlers.NewAuthHandler()
 	friendHandler := handlers.NewAddFriendsHandler()
 
+	deviceHandler := handlers.NewDeviceHandler()
+
 	// --- APIルーティングの定義 ---
 	api := r.Group("/api")
 	{
@@ -53,12 +55,7 @@ func SetupRouter() *gin.Engine {
 		protected := api.Group("/")
 		protected.Use(middleware.AuthMiddleware())
 		{
-			// === AI問題生成機能 ===
-// 			protected.GET("/generate_4choice", handlers.GenerateQuestion4ChoiceHandler)
-// 			protected.POST("/generate_question_4choice_api", handlers.GenerateQuestion4ChoiceAPIHandler)
-// 			protected.POST("/generate_workbook_for_q_and_a", handlers.GenerateWorkbookForQAndAHandler)
-// 			protected.POST("/generate_4_choice_workbook_for_q_and_a", handlers.Generate4ChoiceWorkbookForQAndAHandler)
-// 			protected.POST("/generate_problem", handlers.GenerateProblemHandler)
+
 
 			// === 教科書・フォルダ管理機能 ===
             protected.POST("/folders", handlers.CreateFolderHandler)
@@ -94,6 +91,8 @@ func SetupRouter() *gin.Engine {
 
 			// === ペナルティ通知機能 ===
 			protected.POST("/penalty/check", handlers.NewPenaltyHandler().CheckPenalty)
+
+			protected.POST("/device_token", deviceHandler.SaveDeviceToken)
 
 		}
 	}
