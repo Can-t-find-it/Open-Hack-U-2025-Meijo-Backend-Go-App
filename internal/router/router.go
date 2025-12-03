@@ -67,6 +67,7 @@ func SetupRouter() *gin.Engine {
 			protected.POST("/generate_problem/:textbook_id", handlers.GenerateProblemHandler)
 
 			// === 教科書・フォルダ管理機能 ===
+
 			protected.POST("/folders", handlers.CreateFolderHandler)
 			protected.DELETE("/folders", handlers.DeleteFoldersBatchHandler)
 			protected.GET("/textbooks", handlers.GetTextbooksHandler)
@@ -83,6 +84,7 @@ func SetupRouter() *gin.Engine {
 
 			// === ユーザー情報取得 ===
 			protected.GET("/user/status", handlers.GetUserStatus)
+			protected.GET("/user/studylog", handlers.GetStudyLogsHandler)
 
 			// === その他 ===
 			protected.GET("/textbook/:id/word", handlers.SuggestWordHandler)
@@ -92,12 +94,12 @@ func SetupRouter() *gin.Engine {
 			protected.POST("/getfriends", friendGetAllHandler.GetAllFriends)
 
 			// フレンド追加・削除・取得
-			protected.POST("/friend/change", friendChangeHandler.AddFriends)
-			protected.DELETE("/friend/change", friendChangeHandler.DeleteFriendsBatch)
+			protected.POST("/friend/change/:id", friendChangeHandler.AddFriends)
+			protected.DELETE("/friend/change/:id", friendChangeHandler.DeleteFriendsBatch)
 			protected.GET("/friend/change", friendChangeHandler.GetFriends)
 
+
 			protected.POST("/friend/studylog", friendStudyLogHandler.GetFriendLog)
-		
 
 
 			// フレンド問題集取得

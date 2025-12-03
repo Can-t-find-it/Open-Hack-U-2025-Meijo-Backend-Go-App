@@ -4,6 +4,7 @@ import (
 	"hacku_2025_meijo/internal/dtos"
 	"hacku_2025_meijo/internal/service"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -26,19 +27,33 @@ func (h *ChangeFriendsHandler) AddFriends(c *gin.Context) {
 		return
 	}
 
-	var input dtos.AddFriends
+	idStr := c.Param("id")
 
-	if err := c.ShouldBindBodyWithJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "JSONが間違っています" + err.Error()})
+	friendID, err := strconv.Atoi(idStr)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "IDは数字で指定してください"})
 		return
 	}
-	response, err := h.service.AddFriends(userID, input)
+
+	var FriendID_slice []int
+
+	FriendID_slice = append(FriendID_slice, friendID)
+
+	var Finally_FriendID dtos.AddFriends
+
+	Finally_FriendID = dtos.AddFriends{
+		Friends: FriendID_slice,
+	}
+
+	_, err = h.service.AddFriends(userID, Finally_FriendID)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, response)
+	// c.JSON(http.StatusOK, response)
+	c.Status(http.StatusNoContent)
 }
 
 // 複数人削除 (DELETE /api/friends)
@@ -50,20 +65,28 @@ func (h *ChangeFriendsHandler) DeleteFriendsBatch(c *gin.Context) {
 		return
 	}
 
-	var input dtos.DeleteFriends
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "JSON形式が不正です"})
+	idStr := c.Param("id")
+
+	deleteId, err := strconv.Atoi(idStr)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "IDは数字で指定してください"})
 		return
 	}
+
+	var deleteIdSlice []int
+
+	deleteIdSlice = append(deleteIdSlice, deleteId)
 
 	// 3. Serviceを一括削除モードで呼ぶ
-	err := h.service.DeleteFriendsBatch(userID, input.DeleteFriends)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	error := h.service.DeleteFriendsBatch(userID, deleteIdSlice)
+	if error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": error.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "指定されたフレンドを削除しました"})
+	// c.JSON(http.StatusOK, gin.H{"message": "指定されたフレンドを削除しました"})
+	c.Status(http.StatusNoContent)
 }
 
 // フレンド一括取得

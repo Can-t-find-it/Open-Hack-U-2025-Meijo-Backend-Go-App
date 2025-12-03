@@ -5,10 +5,14 @@ import (
 )
 
 type StudyLog struct {
-	ID         uint `gorm:"primaryKey"`
-	UserID     uint
-	QuestionID uint
-	Answered   bool
-	AnsweredAt time.Time
-	Score      int
+	ID            uint `gorm:"primaryKey"`
+	UserID        uint
+	QuestionID    uint
+	Answered      bool
+	AnsweredAt    time.Time
+	Score         int
+	FriendName    string
+	TextbookName  string
+	Accuracy      float64
+	TodayProgress uint
 }
