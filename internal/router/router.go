@@ -66,6 +66,7 @@ func SetupRouter() *gin.Engine {
 			protected.POST("/generate_problem", handlers.GenerateProblemHandler)
 
 			// === 教科書・フォルダ管理機能 ===
+
 			protected.POST("/folders", handlers.CreateFolderHandler)
 			protected.DELETE("/folders", handlers.DeleteFolderHandler)
 			protected.GET("/textbooks", handlers.GetTextbooksHandler)
@@ -96,6 +97,9 @@ func SetupRouter() *gin.Engine {
 			protected.GET("/friend/change", friendChangeHandler.GetFriends)
 
 			protected.POST("/friend/studylog", friendStudyLogHandler.GetFriendLog)
+
+			// === ユーザー情報取得 ===
+			protected.GET("/user/studylog", handlers.GetStudyLogsHandler)
 		
 
 
