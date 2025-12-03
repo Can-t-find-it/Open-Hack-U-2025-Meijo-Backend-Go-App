@@ -222,7 +222,12 @@ func GenerateWorkbookForQAndAHandler(c *gin.Context) {
 
 // GET /api/textbooks - 教科書一覧取得
 func GetTextbooksHandler(c *gin.Context) {
-	userID := uint(1) // テスト用（本来はJWTから取得）
+	userIDValue, exists := c.Get("userID")
+    if !exists {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "ユーザーIDがありません"})
+        return
+    }
+    userID := userIDValue.(uint)
 
 	result, err := service.GetUserTextbooks(userID)
 	if err != nil {
@@ -434,41 +439,62 @@ func GenerateAndAddStatementHandler(c *gin.Context) {
 
 // POST /api/folders - フォルダ作成
 func CreateFolderHandler(c *gin.Context) {
-	// リクエストの受け皿
-	var req struct {
-		Name string `json:"name"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
-		return
-	}
+    // Middlewareでセットされた userID を取得
+    userIDValue, exists := c.Get("userID")
+    if !exists {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "ユーザーIDがありません"})
+        return
+    }
+    userID := userIDValue.(uint)
 
-	// 本来はトークンからユーザーIDを取得しますが、今はテスト用ID(1)を使います
-	// (AuthMiddlewareで取得したIDを使う実装に変えるときはここを修正)
-	userID := uint(1)
+    var req struct {
+        Name string `json:"name"`
+    }
+    if err := c.ShouldBindJSON(&req); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
+        return
+    }
 
-	// Serviceを呼ぶ
-	folder, err := service.CreateFolder(userID, req.Name)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
+    folder, err := service.CreateFolder(userID, req.Name)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
 
-	c.JSON(http.StatusCreated, gin.H{
-		"message": "Folder created successfully",
-		"folder":  folder,
-	})
+    c.JSON(http.StatusCreated, gin.H{
+        "folder": gin.H{
+            "id":     folder.ID,
+            "name":   folder.Name,
+            "userId": folder.UserID,
+        },
+    })
 }
+
 
 // DELETE /api/folders/:id - フォルダ削除
 func DeleteFolderHandler(c *gin.Context) {
-	folderID := c.Param("id")
-	
-	err := service.DeleteFolder(folderID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
+    // JSON の受け皿
+    var req struct {
+        FolderIDs []string `json:"folderIds"`
+    }
 
-	c.JSON(http.StatusOK, gin.H{"message": "Folder deleted successfully"})
+    if err := c.ShouldBindJSON(&req); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
+        return
+    }
+
+    if len(req.FolderIDs) == 0 {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "folderIds is required"})
+        return
+    }
+
+    err := service.DeleteFolders(req.FolderIDs)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{
+        "folderIds": req.FolderIDs,
+    })
 }
