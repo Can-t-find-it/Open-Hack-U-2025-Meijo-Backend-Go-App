@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"hacku_2025_meijo/internal/dtos"
 	"hacku_2025_meijo/internal/service"
 	"net/http"
 
@@ -19,14 +18,10 @@ func NewFriendStudyLogHandler() *FriendStudyLogHandler {
 }
 
 func (h *FriendStudyLogHandler) GetFriendLog(c *gin.Context) {
-	var input dtos.InputFriendsStudyLog
 
-	if err := c.ShouldBindBodyWithJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "JSONに間違いがあります"})
-		return
-	}
+	userID := c.GetUint("userID")
 
-	response, err := h.service.GetFriendStudyLog(input.FriendsID)
+	response, err := h.service.GetFriendStudyLog(userID)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err})

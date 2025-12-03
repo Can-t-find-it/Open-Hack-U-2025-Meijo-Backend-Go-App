@@ -8,24 +8,43 @@ import (
 
 type GetFriendStudyLogService struct{}
 
-func (s *GetFriendStudyLogService) GetFriendStudyLog(FriendsID []uint) ([]dtos.ResponseFriendStudyLog, error) {
+func (s *GetFriendStudyLogService) GetFriendStudyLog(userId uint) (*dtos.AllFriendsStudyLog, error) {
 	var allStudyLogs []models.StudyLog
 
-	if err := database.DB.Where("user_id IN ?", FriendsID).Find(&allStudyLogs).Error; err != nil {
+	var myFriends []models.Friend
+
+	var myFriendsID []uint
+	
+	if err := database.DB.Where("user_id = ?", userId).Find(&myFriends).Error; err != nil {
+		return nil, err
+	}
+	
+	for _ ,f := range myFriends {
+		myFriendsID = append(myFriendsID, f.FriendUserID)
+	}
+
+	if err := database.DB.Where("user_id IN ?", myFriendsID).Find(&allStudyLogs).Error; err != nil {
 		return nil, err
 	}
 
-	var response []dtos.ResponseFriendStudyLog
+	var studyLogs []dtos.FriendStudyLog
 
 	for _, log := range allStudyLogs {
-		dto := dtos.ResponseFriendStudyLog{
+		dto := dtos.FriendStudyLog{
+			ID: log.ID,
 			FriendID:   log.UserID,
-			QuestionID: log.QuestionID,
-			Answered:   log.Answered,
+			FriendName: log.FriendName,
 			AnsweredAt: log.AnsweredAt,
-			Score:      log.Score,
+			TextbookName: log.TextbookName,
+			Accuracy: log.Accuracy,
+			TodayProgress: log.TodayProgress,
 		}
-		response = append(response, dto)
+		studyLogs = append(studyLogs, dto)
 	}
-	return response, nil
+
+	response := dtos.AllFriendsStudyLog{
+		Logs: studyLogs,
+	}
+
+	return &response, nil
 }

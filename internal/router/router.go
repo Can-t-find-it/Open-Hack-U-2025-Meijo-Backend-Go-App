@@ -93,13 +93,12 @@ func SetupRouter() *gin.Engine {
 			protected.POST("/getfriends", friendGetAllHandler.GetAllFriends)
 
 			// フレンド追加・削除・取得
-			protected.POST("/friend/change", friendChangeHandler.AddFriends)
-			protected.DELETE("/friend/change", friendChangeHandler.DeleteFriendsBatch)
+			protected.POST("/friend/change/:id", friendChangeHandler.AddFriends)
+			protected.DELETE("/friend/change/:id", friendChangeHandler.DeleteFriendsBatch)
 			protected.GET("/friend/change", friendChangeHandler.GetFriends)
 
-			protected.POST("/friend/studylog", friendStudyLogHandler.GetFriendLog)
 
-		
+			protected.POST("/friend/studylog", friendStudyLogHandler.GetFriendLog)
 
 
 			// フレンド問題集取得

@@ -39,12 +39,12 @@ func (s *AuthService) Login(input dtos.LoginInput) (*dtos.LoginResponse, error) 
 
 	return &dtos.LoginResponse{
 		Token: token,
-		User: dtos.UserResponse{
-			ID:      user.ID,
-			Name:    user.Name,
-			Email:   user.Email,
-			IconURL: user.IconURL,
-		},
+		// User: dtos.UserResponse{
+		// 	ID:      user.ID,
+		// 	Name:    user.Name,
+		// 	Email:   user.Email,
+		// 	IconURL: user.IconURL,
+		// },
 	}, nil
 
 }
@@ -73,12 +73,12 @@ func (s *AuthService) Signup(input dtos.UserSignup) (*dtos.LoginResponse, error)
 
 	return &dtos.LoginResponse{
 		Token: token,
-		User: dtos.UserResponse{
-			ID:      user.ID,
-			Name:    user.Name,
-			Email:   user.Email,
-			IconURL: user.IconURL,
-		},
+		// User: dtos.UserResponse{
+		// 	ID:      user.ID,
+		// 	Name:    user.Name,
+		// 	Email:   user.Email,
+		// 	IconURL: user.IconURL,
+		// },
 	}, nil
 }
 
