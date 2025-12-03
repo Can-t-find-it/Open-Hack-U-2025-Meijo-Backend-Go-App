@@ -356,7 +356,7 @@ func SuggestNewWordViaAI(currentWords []string) (string, error) {
 	wordsStr := strings.Join(currentWords, ", ")
 
 	prompt := fmt.Sprintf(`
-	あなたはIT学習のアドバイザーです。
+	あなたは学習のアドバイザーです。
 	ある学生が以下の単語を学習しています。
 	学習済み単語: [%s]
 
