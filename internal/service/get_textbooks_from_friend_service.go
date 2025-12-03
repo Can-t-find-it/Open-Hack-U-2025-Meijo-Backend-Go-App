@@ -8,7 +8,7 @@ import (
 
 type GetTextbooksService struct{}
 
-func (s *GetTextbooksService) GetTextbooks(userID uint) ([]dtos.ResponseTextbooks, error) {
+func (s *GetTextbooksService) GetTextbooks(userID uint) (*dtos.FinalResponseTextbooks, error) {
 	user_id := userID
 	var friends []models.Friend
 	var textbooks []models.Textbook
@@ -18,7 +18,7 @@ func (s *GetTextbooksService) GetTextbooks(userID uint) ([]dtos.ResponseTextbook
 	}
 
 	if len(friends) == 0 {
-		return []dtos.ResponseTextbooks{}, nil
+		return &dtos.FinalResponseTextbooks{}, nil
 	}
 
 	var friendsID []uint
@@ -35,15 +35,19 @@ func (s *GetTextbooksService) GetTextbooks(userID uint) ([]dtos.ResponseTextbook
 
 	for _, t := range textbooks {
 		dto := dtos.SoloTextbook{
-			UserID:    t.UserID,
-			Name:      t.Name,
-			FolderID:  t.FolderID,
-			Type:      t.Type,
-			PlayTimes: t.PlayTimes,
-			CreatedAt: t.CreatedAt,
-			UpdatedAt: t.UpdatedAt,
+			TextbookId: t.ID,
+			Name:       t.Name,
+			PlayTimes:  t.PlayTimes,
+			CreatedAt:  t.CreatedAt,
+			UpdatedAt:  t.UpdatedAt,
 		}
 		textMap[t.UserID] = append(textMap[t.UserID], dto)
+	}
+
+	friends_id_with_name_map, err := database.GetUserNameMap(friendsID)
+
+	if err != nil {
+		return nil, err
 	}
 
 	for _, fid := range friendsID {
@@ -52,10 +56,15 @@ func (s *GetTextbooksService) GetTextbooks(userID uint) ([]dtos.ResponseTextbook
 			book = []dtos.SoloTextbook{}
 		}
 		textbook := dtos.ResponseTextbooks{
-			UserId:    fid,
+			FriendId:  fid,
+			UserName:  friends_id_with_name_map[fid],
 			Textbooks: book,
 		}
 		responseTextbooks = append(responseTextbooks, textbook)
 	}
-	return responseTextbooks, nil
+
+	response := dtos.FinalResponseTextbooks{
+		Friends: responseTextbooks,
+	}
+	return &response, nil
 }
