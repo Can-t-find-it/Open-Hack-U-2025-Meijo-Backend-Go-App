@@ -384,16 +384,18 @@ func SuggestNewWordsViaAI(currentWords []string) ([]string, error) {
 	wordsStr := strings.Join(currentWords, ", ")
 
 	prompt := fmt.Sprintf(`
-	あなたは学習のアドバイザーです。
-	ある学生が以下の単語を学習しています。
+	あなたはIT学習のカリキュラム作成者です。
+	ある学生が以下の単語を「既に学習済み」です。
 	学習済み単語: [%s]
 
-	この学生が次に覚えるべき、関連性の高い「新しい重要単語」を5つだけ提案してください。
-	
-	条件:
-	- 学習済み単語に含まれているものは除外してください。
-	- 出力は「単語1,単語2,単語3,単語4,単語5」のように、カンマ区切りのリストのみにしてください。（解説などは不要）。
-	- 日本語で答えてください。
+	この学生が次にステップアップするために覚えるべき、関連性の高い「まだ学習していない新しい単語」を3つ提案してください。
+
+	【絶対的な禁止事項】
+	・上記の「学習済み単語」に含まれる単語は、**絶対に出力しないでください**。
+	・同じ単語を繰り返さないでください。
+
+	【出力形式】
+	「単語1,単語2,単語3」のようにカンマ区切りで単語のみを出力すること。解説不要。
 	`, wordsStr)
 
 	apiResp, err := callOpenAIAPI(prompt)
@@ -402,13 +404,31 @@ func SuggestNewWordsViaAI(currentWords []string) ([]string, error) {
 	}
 
 	rawContent := strings.TrimSpace(apiResp.Choices[0].Message.Content)
-
 	rawContent = strings.ReplaceAll(rawContent, "、", ",")
-	
 	rawList := strings.Split(rawContent, ",")
+
+	// 重複フィルター処理
 	var resultList []string
+	
+	// 1. 既存単語をマップに登録（検索を速くするため）
+	existingMap := make(map[string]bool)
+	for _, w := range currentWords {
+		existingMap[strings.TrimSpace(w)] = true
+	}
+
+	// 2. AIの提案をチェックして、知らない単語だけ追加する
 	for _, w := range rawList {
-		resultList = append(resultList, strings.TrimSpace(w))
+		cleanWord := strings.TrimSpace(w)
+		// 空文字でなく、かつ既存リストに含まれていない場合のみ追加
+		if cleanWord != "" && !existingMap[cleanWord] {
+			resultList = append(resultList, cleanWord)
+		}
+	}
+
+	// 結果が0個なら空リストを返す（無理やりDBから取らない）
+	if len(resultList) == 0 {
+		fmt.Println("AIからの提案がすべて重複していたため、候補なし(0件)を返します。")
+		return []string{}, nil
 	}
 
 	return resultList, nil

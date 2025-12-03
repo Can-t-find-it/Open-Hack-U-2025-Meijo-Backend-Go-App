@@ -61,6 +61,7 @@ func AutoMigrate() {
 		&models.Textbook{},
 		&models.Question{},
 		&models.QuestionStatement{},
+		&models.UserDeviceToken{},
     )
     if err != nil {
         log.Fatal("failed to migrate database, got error:", err)

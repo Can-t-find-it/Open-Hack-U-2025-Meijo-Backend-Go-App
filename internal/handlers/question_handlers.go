@@ -223,8 +223,12 @@ func GenerateWorkbookForQAndAHandler(c *gin.Context) {
 
 // GET /api/textbooks - 自分の問題集一覧取得
 func GetTextbooksHandler(c *gin.Context) {
-	// 認証機能を入れたので、本来はここ（Context）からユーザーIDを取ります
-	userID := c.GetUint("userID") // ミドルウェア実装次第
+	userIDValue, exists := c.Get("userID")
+    if !exists {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "ユーザーIDがありません"})
+        return
+    }
+    userID := userIDValue.(uint)
 
 	result, err := service.GetUserTextbooks(userID)
 	if err != nil {
@@ -451,27 +455,34 @@ func GenerateAndAddStatementHandler(c *gin.Context) {
 
 // POST /api/folders - フォルダ作成
 func CreateFolderHandler(c *gin.Context) {
-	// リクエストの受け皿
-	var req struct {
-		Name string `json:"folderName"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
-		return
-	}
+    // Middlewareでセットされた userID を取得
+    userIDValue, exists := c.Get("userID")
+    if !exists {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "ユーザーIDがありません"})
+        return
+    }
+    userID := userIDValue.(uint)
 
-	userID := c.GetUint("userID") // ミドルウェア実装次第
+    var req struct {
+        Name string `json:"folderName"`
+    }
+    if err := c.ShouldBindJSON(&req); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
+        return
+    }
 
-	// Serviceを呼ぶ
-	_, err := service.CreateFolder(userID, req.Name)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
+    _, err := service.CreateFolder(userID, req.Name)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
 
-	c.Status(http.StatusNoContent)
-
+    c.Status(http.StatusNoContent)
 }
+
+
+
+
 
 // DELETE /api/folders/:id - フォルダ削除
 func DeleteFoldersBatchHandler(c *gin.Context) {
