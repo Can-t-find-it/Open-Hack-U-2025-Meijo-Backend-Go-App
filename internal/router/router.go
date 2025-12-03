@@ -42,6 +42,8 @@ func SetupRouter() *gin.Engine {
 	// ★追加: 教科書取得ハンドラを初期化
 	friendTextbookHandler := handlers.NewGetTextBooksHandler()
 
+	deviceHandler := handlers.NewDeviceHandler()
+
 	// --- APIルーティングの定義 ---
 	api := r.Group("/api")
 	{
@@ -57,14 +59,16 @@ func SetupRouter() *gin.Engine {
 		protected := api.Group("/")
 		protected.Use(middleware.AuthMiddleware())
 		{
+
 			// 問題文生成
 			protected.POST("/generate_statement", handlers.GenerateAndAddStatementHandler)
 			// 総合問題生成
 			protected.POST("/generate_problem", handlers.GenerateProblemHandler)
 
 			// === 教科書・フォルダ管理機能 ===
+
 			protected.POST("/folders", handlers.CreateFolderHandler)
-			protected.DELETE("/folders/:id", handlers.DeleteFolderHandler)
+			protected.DELETE("/folders", handlers.DeleteFolderHandler)
 			protected.GET("/textbooks", handlers.GetTextbooksHandler)
 			protected.POST("/textbooks", handlers.CreateTextbookHandler)
 			protected.GET("/textbook/:id", handlers.GetTextbookDetailHandler)
@@ -76,6 +80,10 @@ func SetupRouter() *gin.Engine {
 			protected.DELETE("/question/:id", handlers.DeleteQuestionHandler)
 			protected.POST("/questionstatements", handlers.AddQuestionStatementHandler)
 			protected.DELETE("/questionstatements/:id", handlers.DeleteQuestionStatementHandler)
+
+			// === ユーザー情報取得 ===
+			protected.GET("/user/status", handlers.GetUserStatus)
+			protected.GET("/user/studylog", handlers.GetStudyLogsHandler)
 
 			// === その他 ===
 			protected.GET("/word", handlers.SuggestWordHandler)
@@ -89,7 +97,9 @@ func SetupRouter() *gin.Engine {
 			protected.DELETE("/friend/change/:id", friendChangeHandler.DeleteFriendsBatch)
 			protected.GET("/friend/change", friendChangeHandler.GetFriends)
 
-			protected.GET("/friend/studylog", friendStudyLogHandler.GetFriendLog)
+
+			protected.POST("/friend/studylog", friendStudyLogHandler.GetFriendLog)
+
 
 			// フレンド問題集取得
 			protected.GET("/friend/textbooks", friendTextbookHandler.GetTextbooks)
@@ -97,6 +107,7 @@ func SetupRouter() *gin.Engine {
 
 			// === ペナルティ通知機能 ===
 			protected.POST("/penalty/check", handlers.NewPenaltyHandler().CheckPenalty)
+			protected.POST("/device_token", deviceHandler.SaveDeviceToken)
 
 		}
 	}
