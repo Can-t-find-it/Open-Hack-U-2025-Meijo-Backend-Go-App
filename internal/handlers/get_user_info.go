@@ -49,7 +49,7 @@ func GetUserStatus(c *gin.Context) {
     })
 }
 
-// --- 学習の継続日数を計算するサンプル関数 ---
+
 func calculateStreakDays(userID uint) int {
     var logs []models.StudyLog
     database.DB.Where("user_id = ?", userID).Order("answered_at DESC").Find(&logs)
