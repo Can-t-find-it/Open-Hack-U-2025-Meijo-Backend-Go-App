@@ -83,6 +83,7 @@ func SetupRouter() *gin.Engine {
 
 			// === ユーザー情報取得 ===
 			protected.GET("/user/status", handlers.GetUserStatus)
+			protected.GET("/user/studylog", handlers.GetStudyLogsHandler)
 
 			// === その他 ===
 			protected.GET("/word", handlers.SuggestWordHandler)
@@ -98,8 +99,6 @@ func SetupRouter() *gin.Engine {
 
 			protected.POST("/friend/studylog", friendStudyLogHandler.GetFriendLog)
 
-			// === ユーザー情報取得 ===
-			protected.GET("/user/studylog", handlers.GetStudyLogsHandler)
 		
 
 
