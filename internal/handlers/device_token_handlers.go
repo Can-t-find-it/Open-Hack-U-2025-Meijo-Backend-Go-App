@@ -38,6 +38,6 @@ func (h *DeviceHandler) SaveDeviceToken(c *gin.Context) {
         Token:  req.Token,
     })
 
-    c.JSON(http.StatusOK, gin.H{"status": "ok"})
+    c.Status(http.StatusNoContent)
 }
 

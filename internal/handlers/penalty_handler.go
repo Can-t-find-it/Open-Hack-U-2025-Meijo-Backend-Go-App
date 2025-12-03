@@ -67,7 +67,7 @@ func (h *PenaltyHandler) CheckPenalty(c *gin.Context) {
         friendIDs = append(friendIDs, f.FriendUserID)
     }
 
-    inactiveFriends := []gin.H{}
+    // inactiveFriends := []gin.H{}
     limitTime := time.Now().Add(-24 * time.Hour)
 
     for _, fid := range friendIDs {
@@ -92,26 +92,28 @@ func (h *PenaltyHandler) CheckPenalty(c *gin.Context) {
             // ★ 通知先はログインしているユーザー本人
             go h.sendPenaltyNotification(postUserID, u.Name)
 
-            inactiveFriends = append(inactiveFriends, gin.H{
-                "id":   u.ID,
-                "name": u.Name,
-            })
+            // inactiveFriends = append(inactiveFriends, gin.H{
+            //     "id":   u.ID,
+            //     "name": u.Name,
+            // })
         }
     }
 
-    if len(inactiveFriends) == 0 {
-        c.JSON(http.StatusOK, gin.H{
-            "inactive_friends": []string{},
-            "count":            0,
-            "message":          "全員24時間以内に勉強しています！",
-        })
-        return
-    }
+    c.Status(http.StatusNoContent)
+    // if len(inactiveFriends) == 0 {
+    //     c.JSON(http.StatusOK, gin.H{
+    //         "inactive_friends": []string{},
+    //         "count":            0,
+    //         "message":          "全員24時間以内に勉強しています！",
+    //     })
+    //     return
+    // }
 
-    c.JSON(http.StatusOK, gin.H{
-        "inactive_friends": inactiveFriends,
-        "count":            len(inactiveFriends),
-    })
+    // c.JSON(http.StatusOK, gin.H{
+    //     "inactive_friends": inactiveFriends,
+    //     "count":            len(inactiveFriends),
+    // })
+    
 }
 
 // --- APNs 通知 ---
@@ -153,4 +155,5 @@ func (h *PenaltyHandler) sendPenaltyNotification(userID uint, name string) {
     }
 
     fmt.Println("APNs送信成功 →", userID, name)
+
 }
