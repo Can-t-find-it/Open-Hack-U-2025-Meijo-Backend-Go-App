@@ -3,16 +3,19 @@ package dtos
 import "time"
 
 type SoloTextbook struct {
-	UserID    uint      `json:"user_id"`
-	Name      string    `json:"textbook_name"`
-	FolderID  uint      `json:"folder_id"`
-	Type      string    `json:"type"`
-	PlayTimes int       `json:"play_counts"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"update_at"`
+	TextbookId uint      `json:"textbookId"`
+	Name       string    `json:"name"`
+	PlayTimes  int       `json:"questionCount"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"update_at"`
 }
 
 type ResponseTextbooks struct {
-	UserId    uint           `json:"user_id"`
-	Textbooks []SoloTextbook `json:"Textbooks"`
+	FriendId  uint           `json:"friendId"`
+	UserName  string         `json:"userName"`
+	Textbooks []SoloTextbook `json:"textbooks"`
+}
+
+type FinalResponseTextbooks struct {
+	Friends []ResponseTextbooks `json:"friends"`
 }
