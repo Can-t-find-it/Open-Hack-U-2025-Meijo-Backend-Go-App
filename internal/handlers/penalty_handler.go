@@ -41,7 +41,7 @@ func NewPenaltyHandler() *PenaltyHandler {
         TeamID:  teamID,
     }
 
-    client := apns2.NewTokenClient(tok).Production() // 開発中は Development() を使用
+    client := apns2.NewTokenClient(tok).Development() // ← 開発中は Development()
 
     return &PenaltyHandler{
         APNsClient: client,
@@ -49,7 +49,7 @@ func NewPenaltyHandler() *PenaltyHandler {
 }
 
 func (h *PenaltyHandler) CheckPenalty(c *gin.Context) {
-    postUserID := c.GetUint("userID")
+    postUserID := c.GetUint("userID") // ← ログインユーザー
 
     var friends []models.Friend
     database.DB.Where("user_id = ?", postUserID).Find(&friends)
@@ -86,9 +86,11 @@ func (h *PenaltyHandler) CheckPenalty(c *gin.Context) {
             return
         }
 
+        // --- 友達が24時間勉強していない場合 ---
         if logResult.RowsAffected == 0 || log.AnsweredAt.Before(limitTime) {
-            // APNs に通知
-            go h.sendPenaltyNotification(fid, u.Name)
+
+            // ★ 通知先はログインしているユーザー本人
+            go h.sendPenaltyNotification(postUserID, u.Name)
 
             inactiveFriends = append(inactiveFriends, gin.H{
                 "id":   u.ID,
@@ -112,10 +114,12 @@ func (h *PenaltyHandler) CheckPenalty(c *gin.Context) {
     })
 }
 
-// --- APNs に直接通知 ---
+// --- APNs 通知 ---
 func (h *PenaltyHandler) sendPenaltyNotification(userID uint, name string) {
+
     var device models.UserDeviceToken
     result := database.DB.Where("user_id = ?", userID).Last(&device)
+
     if result.Error != nil || device.Token == "" {
         fmt.Println("APNs: トークンなし、通知スキップ")
         return
@@ -124,7 +128,7 @@ func (h *PenaltyHandler) sendPenaltyNotification(userID uint, name string) {
     payload := fmt.Sprintf(`{
         "aps": {
             "alert": {
-                "title": "勉強してない友だちがいます！",
+                "title": "勉強していない友だちがいます！",
                 "body": "%sさんは24時間勉強していません。"
             },
             "sound": "default"
@@ -134,6 +138,7 @@ func (h *PenaltyHandler) sendPenaltyNotification(userID uint, name string) {
     notification := &apns2.Notification{
         DeviceToken: device.Token,
         Payload:     []byte(payload),
+        Topic:       os.Getenv("APNS_BUNDLE_ID"), // ← ★ MissingTopic 対策 ★ 必須 ★
     }
 
     res, err := h.APNsClient.Push(notification)
@@ -147,5 +152,5 @@ func (h *PenaltyHandler) sendPenaltyNotification(userID uint, name string) {
         return
     }
 
-    fmt.Println("APNs送信成功 →", name)
+    fmt.Println("APNs送信成功 →", userID, name)
 }
