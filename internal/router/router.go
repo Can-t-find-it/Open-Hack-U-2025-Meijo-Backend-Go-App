@@ -42,6 +42,8 @@ func SetupRouter() *gin.Engine {
 	// ★追加: 教科書取得ハンドラを初期化
 	friendTextbookHandler := handlers.NewGetTextBooksHandler()
 
+	deviceHandler := handlers.NewDeviceHandler()
+
 	// --- APIルーティングの定義 ---
 	api := r.Group("/api")
 	{
@@ -57,6 +59,7 @@ func SetupRouter() *gin.Engine {
 		protected := api.Group("/")
 		protected.Use(middleware.AuthMiddleware())
 		{
+
 			// 問題文生成
 			protected.POST("/generate_statement", handlers.GenerateAndAddStatementHandler)
 			// 総合問題生成
@@ -99,6 +102,8 @@ func SetupRouter() *gin.Engine {
 
 			// === ペナルティ通知機能 ===
 			protected.POST("/penalty/check", handlers.NewPenaltyHandler().CheckPenalty)
+
+			protected.POST("/device_token", deviceHandler.SaveDeviceToken)
 
 		}
 	}

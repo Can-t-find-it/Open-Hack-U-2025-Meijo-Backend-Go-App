@@ -1,4 +1,5 @@
 *.env
+*AuthKey_MUJS25R9TV.p8
 deploy_key
 deploy_key.pub
 meijo-hackathon-2025.pem
