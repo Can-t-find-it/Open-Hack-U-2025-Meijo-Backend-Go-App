@@ -89,7 +89,7 @@ func SetupRouter() *gin.Engine {
 			protected.DELETE("/friend/change/:id", friendChangeHandler.DeleteFriendsBatch)
 			protected.GET("/friend/change", friendChangeHandler.GetFriends)
 
-			protected.GET("/friend/studylog", friendStudyLogHandler.GetFriendLog)
+			protected.POST("/friend/studylog", friendStudyLogHandler.GetFriendLog)
 
 			// フレンド問題集取得
 			protected.GET("/friend/textbooks", friendTextbookHandler.GetTextbooks)
