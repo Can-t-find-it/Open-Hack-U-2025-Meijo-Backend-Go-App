@@ -58,9 +58,10 @@ func SetupRouter() *gin.Engine {
 		protected.Use(middleware.AuthMiddleware())
 		{
 			// 問題文生成
-			protected.POST("/generate_statement", handlers.GenerateAndAddStatementHandler)
+			
+			protected.POST("/generate_statement/:question_id", handlers.GenerateAndAddStatementHandler)
 			// 総合問題生成
-			protected.POST("/generate_problem", handlers.GenerateProblemHandler)
+			protected.POST("/generate_problem/:textbook_id", handlers.GenerateProblemHandler)
 
 			// === 教科書・フォルダ管理機能 ===
 			protected.POST("/folders", handlers.CreateFolderHandler)
@@ -68,17 +69,17 @@ func SetupRouter() *gin.Engine {
 			protected.GET("/textbooks", handlers.GetTextbooksHandler)
 			protected.POST("/textbooks", handlers.CreateTextbookHandler)
 			protected.GET("/textbook/:id", handlers.GetTextbookDetailHandler)
-			protected.DELETE("/textbooks", handlers.DeleteTextbooksBatchHandler)
-			protected.POST("/textbook_result", handlers.UpdateTextbookResultHandler)
+			protected.DELETE("/textbook/:id", handlers.DeleteTextbookHandler)
+			protected.POST("/textbook/:id/result", handlers.UpdateTextbookResultHandler)
 
 			// === 問題・問題文の操作 ===
 			protected.POST("/question", handlers.AddQuestionHandler)
-			protected.DELETE("/questions", handlers.DeleteQuestionsBatchHandler)
-			protected.POST("/questionstatements", handlers.AddQuestionStatementHandler)
-			protected.DELETE("/questionstatements", handlers.DeleteQuestionStatementsBatchHandler)
+			protected.DELETE("/question/:id", handlers.DeleteQuestionHandler)
+			protected.POST("/questionstatement", handlers.AddQuestionStatementHandler)
+			protected.DELETE("/questionstatement/:id", handlers.DeleteQuestionStatementHandler)
 
 			// === その他 ===
-			protected.GET("/word", handlers.SuggestWordHandler)
+			protected.GET("/textbook/:id/word", handlers.SuggestWordHandler)
 
 			// === フレンド機能 ===
 			// フレンド一覧取得
@@ -89,9 +90,6 @@ func SetupRouter() *gin.Engine {
 			protected.DELETE("/friend/change", friendChangeHandler.DeleteFriendsBatch)
 			protected.GET("/friend/change", friendChangeHandler.GetFriends)
 
-			//protected.POST("/generate_problem", handlers.GenerateProblemHandler)
-			//protected.POST("/question/", handlers.GenerateProblemHandler)
-			//protected.DELETE("/question/:id", handlers.DeleteQuestionHandler)
 			protected.POST("/friend/studylog", friendStudyLogHandler.GetFriendLog)
 		
 
@@ -105,6 +103,7 @@ func SetupRouter() *gin.Engine {
 
             //=== PDFアップロード機能 ===
             protected.POST("/upload_pdf", handlers.UploadPDFHandler)
+			protected.POST("/extract_keywords/:textbook_id", handlers.ExtractKeywordsFromTextHandler)
 
 		}
 	}

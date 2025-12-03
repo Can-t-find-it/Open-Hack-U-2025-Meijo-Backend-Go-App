@@ -133,8 +133,28 @@ func UploadPDFHandler(c *gin.Context) {
 	// ---------------------------------------------------
 	// 5. レスポンス (完成！)
 	// ---------------------------------------------------
+	c.Status(http.StatusNoContent)
+}
+
+//pdfを受けって、重要単語を抽出して返す
+func ExtractKeywordsFromTextHandler(c *gin.Context){
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "File is required"})
+		return
+	}
+	text, err := service.ExtractTextFromPDF(file)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read PDF: " + err.Error()})
+		return
+	}
+
+	keywords, err := service.ExtractKeywordsFromText(text)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "AI extraction failed: " + err.Error()})
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{
-		"textbookId": textbookID, // 作成されたIDも返す
-		"questions":  finalQuestions,
+		"extractWords": keywords,
 	})
 }

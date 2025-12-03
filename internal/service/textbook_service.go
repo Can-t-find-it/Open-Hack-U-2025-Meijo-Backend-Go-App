@@ -155,12 +155,11 @@ func AddQuestionToTextbook(textbookID uint, item dtos.ResultItem, answer string)
 // 未実装だった削除・追加機能 (Question / QuestionStatement)
 // ----------------------------------------------------
 
-// DeleteQuestionsBatch: 複数の問題を一括削除する
-// (単体削除も、IDが1つのリストとしてこれを呼べばOK)
-func DeleteQuestionsBatch(questionIDs []string) error {
+// DeleteQuestions: 問題を削除する
+func DeleteQuestion(questionID string) error {
 	// 指定されたIDリストの問題をまとめて削除
 	// OnDelete:CASCADE設定により、紐付くQuestionStatementも自動で消えます
-	result := database.DB.Unscoped().Where("id IN ?", questionIDs).Delete(&models.Question{})
+	result := database.DB.Unscoped().Where("id = ?", questionID).Delete(&models.Question{})
 	return result.Error
 }
 
@@ -178,8 +177,8 @@ func AddQuestionStatement(questionID uint, statement string, explain string, cho
 }
 
 // DeleteQuestionStatement: 特定の問題文（子）だけを削除する
-func DeleteQuestionStatementsBatch(statementIDs []string) error {
-	result := database.DB.Delete(&models.QuestionStatement{}, "id IN ?", statementIDs)
+func DeleteQuestionStatement(statementID string) error {
+	result := database.DB.Delete(&models.QuestionStatement{}, "id = ?", statementID)
 	return result.Error
 }
 
@@ -240,10 +239,10 @@ func GetWordsInTextbook(textbookID string) ([]string, error) {
 	return words, nil
 }
 
-func DeleteTextbooksBatch(textbookIDs []string) error {
+func DeleteTextbook(textbookIDs string) error {
 	// 指定されたIDのTextbookを削除
 	// OnDelete:CASCADE設定があるため、中身の問題なども連鎖して削除されます
-	if err := database.DB.Delete(&models.Textbook{}, "id IN ?", textbookIDs).Error; err != nil {
+	if err := database.DB.Delete(&models.Textbook{}, "id = ?", textbookIDs).Error; err != nil {
 		return err
 	}
 	return nil

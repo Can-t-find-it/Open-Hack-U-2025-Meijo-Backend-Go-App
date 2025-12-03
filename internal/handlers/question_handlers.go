@@ -59,35 +59,39 @@ func GenerateQuestion4ChoiceHandler(c *gin.Context) {
 }
 
 // ---- POST 問題生成・保存 (教科書の設定に従う版) ----
+// ---- POST 問題生成・保存 (パスパラメータ版) ----
 func GenerateProblemHandler(c *gin.Context) {
+	// 1. URLから教科書IDを取得する (例: /generate_problem/5 の "5")
+	textbookIDStr := c.Param("textbook_id")
+	
+	// 文字列を数字(uint)に変換
+	idInt, err := strconv.Atoi(textbookIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid textbook ID in path"})
+		return
+	}
+	textbookID := uint(idInt)
+
+	// 2. JSONボディを受け取る (TextbookIDはここにはもう不要)
 	var body dtos.RequestBody
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON: " + err.Error()})
 		return
 	}
 
-	// 1. 教科書IDのチェック
-	if body.TextbookID == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "textbookId is required"})
-		return
-	}
-
-	// 2. DBから教科書の情報を取得して、Type（形式）を確認する
+	// 3. DBから教科書の情報を取得して、Type（形式）を確認する
 	var textbook models.Textbook
-	// modelsパッケージのインポートが必要です
-	if err := database.DB.First(&textbook, body.TextbookID).Error; err != nil {
+	if err := database.DB.First(&textbook, textbookID).Error; err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Textbook not found"})
 		return
 	}
-
-	// 教科書の設定を「パターン」として取得
-	pattern := string(textbook.Type) 
+	pattern := string(textbook.Type)
 
 	var resultItems []dtos.ResultItem
 	var targetAnswers []string
-	var err error
 
-	// 3. 単語リストの整理
+
+	// 4. 単語リストの整理
 	if len(body.Answers) > 0 {
 		targetAnswers = body.Answers
 	} else if body.Answer != "" {
@@ -97,22 +101,19 @@ func GenerateProblemHandler(c *gin.Context) {
 		return
 	}
 
-	// 4. 生成ロジック (教科書のタイプで分岐)
-	// 定数 (models.Type...) を使って判定します
+	// 5. 生成ロジック (変更なし)
 	switch models.TextbookType(pattern) {
-	
+
 	case models.Type4Choice, models.TypeFillIn4Choice:
-		// --- 4択系 (普通の4択 or 穴埋め4択) ---
-		// Generate4ChoiceWorkbookForQAndA は pattern 文字列をそのままAIへの指示に使います
+
 		resultItems, err = service.Generate4ChoiceWorkbookForQAndA(targetAnswers, pattern)
 
 	case models.TypeFillIn, models.TypeInput:
-		// --- 入力系 (穴埋め入力 or 完全入力) ---
-		// GenerateWorkbookForQAndA は pattern 文字列をAIへの指示に使います
+
 		resultItems, err = service.GenerateWorkbookForQAndA(targetAnswers, pattern)
 
 	default:
-		// 未知のタイプの場合
+
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Unsupported textbook type: " + pattern})
 		return
 	}
@@ -127,29 +128,27 @@ func GenerateProblemHandler(c *gin.Context) {
 		return
 	}
 
-	// 5. DB保存
+	// 6. DB保存 (URLから取った textbookID を使う！)
 	var finalResponse []dtos.ResultItem
 
 	for i, item := range resultItems {
-		
+
 		currentAnswer := ""
 		if i < len(targetAnswers) {
 			currentAnswer = targetAnswers[i]
 		}
 
-
-		id, err := service.SaveQuestionToDB(body.TextbookID, item, currentAnswer)
+		// ★ここでURL由来のIDを使う
+		id, err := service.SaveQuestionToDB(textbookID, item, currentAnswer)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "DB保存エラー: " + err.Error()})
 			return
 		}
-		item.ID = id // 生成されたIDをセット
+		item.ID = id
 		finalResponse = append(finalResponse, item)
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"questions": finalResponse,
-	})
+	c.Status(http.StatusNoContent)
 }
 
 // ---- POST 四択 複数 (個別API) ----
@@ -257,7 +256,7 @@ func CreateTextbookHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"message": "Textbook created"})
+	c.Status(http.StatusNoContent)
 }
 
 // GET /api/textbook/:id - 教科書詳細取得
@@ -274,36 +273,23 @@ func GetTextbookDetailHandler(c *gin.Context) {
 }
 
 // DELETE /api/textbooks/:id - 教科書削除
-// DELETE /api/textbooks - 教科書一括削除
-func DeleteTextbooksBatchHandler(c *gin.Context) {
-	var req struct {
-		TextbookIds []string `json:"textbookIds"` // 配列で受け取る
-	}
+func DeleteTextbookHandler(c *gin.Context) {
+	textbookID := c.Param("id")
 
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
-		return
-	}
-
-	if len(req.TextbookIds) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "No IDs provided"})
-		return
-	}
-
-	// Serviceを呼ぶ
-	err := service.DeleteTextbooksBatch(req.TextbookIds)
+	err := service.DeleteTextbook(textbookID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Textbooks deleted successfully"})
+	c.Status(http.StatusNoContent)
 }
 
-// POST /api/textbook_result - 学習結果保存
+// POST /api/textbook_result/:id - 学習結果保存
 func UpdateTextbookResultHandler(c *gin.Context) {
+	textbookID := c.Param("id")
+
 	var req struct {
-		TextbookID uint    `json:"textbookId"`
 		Score      float64 `json:"score"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -311,13 +297,12 @@ func UpdateTextbookResultHandler(c *gin.Context) {
 		return
 	}
 
-	idStr := strconv.Itoa(int(req.TextbookID))
-	err := service.UpdateTextbookStatus(idStr, req.Score)
+	err := service.UpdateTextbookStatus(textbookID, req.Score)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Score updated successfully"})
+	c.Status(http.StatusNoContent)
 }
 
 // POST /api/question - 生成した問題をDBに保存 (単体)
@@ -339,7 +324,7 @@ func AddQuestionHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Question added successfully"})
+	c.Status(http.StatusNoContent)
 }
 
 // ==========================================
@@ -347,30 +332,19 @@ func AddQuestionHandler(c *gin.Context) {
 // ==========================================
 
 // DELETE /api/question/:id - 問題（親）ごとの削除
-// DELETE /api/questions - 問題一括削除
-func DeleteQuestionsBatchHandler(c *gin.Context) {
-	var req struct {
-		QuestionIds []string `json:"questionIds"` // 配列で受け取る
-	}
+func DeleteQuestionHandler(c *gin.Context) {
+	
 
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
-		return
-	}
-
-	if len(req.QuestionIds) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "No IDs provided"})
-		return
-	}
+	questionID := c.Param("id")
 
 	// Serviceを呼ぶ
-	err := service.DeleteQuestionsBatch(req.QuestionIds)
+	err := service.DeleteQuestion(questionID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Questions deleted successfully"})
+	c.Status(http.StatusNoContent)
 }
 
 // POST /api/questionstatements - 既存の問題に新しい聞き方を追加
@@ -391,39 +365,32 @@ func AddQuestionStatementHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Statement added successfully"})
+	c.Status(http.StatusNoContent)
 }
 
 // DELETE /api/questionstatements - 問題文一括削除
-func DeleteQuestionStatementsBatchHandler(c *gin.Context) {
-	var req struct {
-		StatementIds []string `json:"statementIds"` // 配列で受け取る
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
-		return
-	}
-
-	if len(req.StatementIds) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "No IDs provided"})
-		return
-	}
+func DeleteQuestionStatementHandler(c *gin.Context) {
+	statementID := c.Param("id")
 
 	// Serviceを呼ぶ
-	err := service.DeleteQuestionStatementsBatch(req.StatementIds)
+	err := service.DeleteQuestionStatement(statementID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Statements deleted successfully"})
+	c.Status(http.StatusNoContent)
 }
 
 // GET /api/word - 覚えたい単語提案 (AI版)
 func SuggestWordHandler(c *gin.Context) {
 
-	textbookID := c.Query("textbook_id")
+	textbookID := c.Param("textbook_id")
+
+
+	if textbookID == "" {
+		textbookID = c.Query("textbook_id")
+	}
 
 	var suggestedWords []string // 配列に変更
 	var err error
@@ -437,10 +404,10 @@ func SuggestWordHandler(c *gin.Context) {
 		}
 
 		if len(currentWords) == 0 {
-			// 教科書が空ならランダムに3つ返す
+			// 教科書が空なら、AI分析できないのでランダムに切り替え
 			suggestedWords, err = service.GetRandomSuggestedWords(3)
 		} else {
-			// 教科書があるならAIに3つ考えさせる
+			// AIに提案させる
 			suggestedWords, err = service.SuggestNewWordsViaAI(currentWords)
 		}
 
@@ -461,39 +428,25 @@ func SuggestWordHandler(c *gin.Context) {
 }
 // POST /api/generate_statement
 func GenerateAndAddStatementHandler(c *gin.Context) {
-	var req struct {
-		QuestionID uint `json:"questionId"`
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON: " + err.Error()})
+	// 1. URLからIDを取得 (パスパラメータ)
+	questionIDStr := c.Param("question_id")
+	idInt, err := strconv.Atoi(questionIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid question ID"})
 		return
 	}
+	questionID := uint(idInt)
 
-	// 引数が QuestionID だけになりました
-	newStmt, err := service.GenerateAndAddStatement(req.QuestionID)
+	// 2. 生成 & 保存
+	// ★修正: 戻り値を使わないので newStmt ではなく _ で受け取る！
+	_, err = service.GenerateAndAddStatement(questionID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Generation failed: " + err.Error()})
 		return
 	}
 
-	type StatementResponse struct {
-		ID                uint     `json:"id"`
-		QuestionID        uint     `json:"questionId"`
-		QuestionStatement string   `json:"questionStatement"`
-		Choices           []string `json:"choices"`
-		Explain           string   `json:"explain"`
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"statement": StatementResponse{
-			ID:                newStmt.ID,
-			QuestionID:        newStmt.QuestionID,
-			QuestionStatement: newStmt.Statement,
-			Choices:           newStmt.Choices,
-			Explain:           newStmt.Explain,
-		},
-	})
+	// 3. ステータスコード 204 (No Content) を返す
+	c.Status(http.StatusNoContent)
 }
 
 // POST /api/folders - フォルダ作成
@@ -510,25 +463,20 @@ func CreateFolderHandler(c *gin.Context) {
 	userID := c.GetUint("userID") // ミドルウェア実装次第
 
 	// Serviceを呼ぶ
-	folder, err := service.CreateFolder(userID, req.Name)
+	_, err := service.CreateFolder(userID, req.Name)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"folder": gin.H{
-			"id":   folder.ID,
-			"name": folder.Name,
-			"userId": folder.UserID,
-		},
-	})
+	c.Status(http.StatusNoContent)
+
 }
 
 // DELETE /api/folders/:id - フォルダ削除
 func DeleteFoldersBatchHandler(c *gin.Context) {
 	var req struct {
-		FolderIds []string `json:"folderids"` // 配列で受け取る
+		FolderIds []string `json:"folderIds"` // 配列で受け取る
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -548,5 +496,5 @@ func DeleteFoldersBatchHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Folders deleted successfully"})
+	c.Status(http.StatusNoContent)
 }

@@ -25,14 +25,14 @@ type TextbookDetailResponse struct {
 
 type QuestionResponse struct {
 	ID                 uint                     `json:"id"`
-	QuestionStatements []QuestionStatementResponse `json:"question_statements"`
+	QuestionStatements []QuestionStatementResponse `json:"questionstatements"`
 	Answer             string                   `json:"answer"`
 	
 }
 
 type QuestionStatementResponse struct {
 	ID               uint     `json:"id"`
-	QuestionStatement string   `json:"question_statement"`
+	QuestionStatement string   `json:"questionStatement"`
 	Choices          []string `json:"choices"`
 	Explain          string   `json:"explain"`
 }
