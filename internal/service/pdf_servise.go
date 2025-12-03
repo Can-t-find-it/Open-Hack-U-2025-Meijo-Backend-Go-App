@@ -107,3 +107,4 @@ func ExtractKeywordsFromText(text string) ([]string, error) {
 
 	return resultList, nil
 }
+

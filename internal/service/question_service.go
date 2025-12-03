@@ -433,3 +433,45 @@ func SuggestNewWordsViaAI(currentWords []string) ([]string, error) {
 
 	return resultList, nil
 }
+
+// GenerateAndSaveBatch: 単語リストから問題を一括生成し、指定の教科書に保存する（共通機能）
+func GenerateAndSaveBatch(textbookID uint, textbookType string, answers []string) ([]dtos.ResultItem, error) {
+	var resultItems []dtos.ResultItem
+	var err error
+
+	// 1. AI生成
+	switch models.TextbookType(textbookType) {
+	case models.Type4Choice, models.TypeFillIn4Choice:
+		resultItems, err = Generate4ChoiceWorkbookForQAndA(answers, textbookType)
+	case models.TypeFillIn, models.TypeInput:
+		resultItems, err = GenerateWorkbookForQAndA(answers, textbookType)
+	default:
+		// 未知のタイプなら記述式でトライ
+		resultItems, err = GenerateWorkbookForQAndA(answers, textbookType)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. DB保存 & ID埋め込み
+	var finalQuestions []dtos.ResultItem
+	for i, item := range resultItems {
+		currentAnswer := ""
+		if i < len(answers) {
+			currentAnswer = answers[i]
+		}
+
+		id, err := SaveQuestionToDB(textbookID, item, currentAnswer)
+		if err != nil {
+			// エラーログを出して続行
+			fmt.Println("Save Error:", err)
+			continue
+		}
+		
+		item.ID = id
+		finalQuestions = append(finalQuestions, item)
+	}
+
+	return finalQuestions, nil
+}

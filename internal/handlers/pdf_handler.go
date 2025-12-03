@@ -1,13 +1,11 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"hacku_2025_meijo/internal/database"
-	"hacku_2025_meijo/internal/dtos"
 	"hacku_2025_meijo/internal/models"
 	"hacku_2025_meijo/internal/service"
 )
@@ -62,8 +60,10 @@ func UploadPDFHandler(c *gin.Context) {
 	//  今回は簡易的に「今作ったやつ」を取得します)
 	var newTextbook models.Textbook
 	// フォルダIDと名前で検索して、一番新しいものを取得
-	database.DB.Where("folder_id = ? AND name = ?", folderID, name).Order("created_at desc").First(&newTextbook)
-	
+	if err := database.DB.Where("folder_id = ? AND name = ?", folderID, name).Order("created_at desc").First(&newTextbook).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve created textbook"})
+		return
+	}
 	textbookID := newTextbook.ID
 
 	// ---------------------------------------------------
@@ -94,46 +94,31 @@ func UploadPDFHandler(c *gin.Context) {
 	// ---------------------------------------------------
 	// 4. 問題生成 & 保存
 	// ---------------------------------------------------
-	var resultItems []dtos.ResultItem
-	
-	// 教科書のタイプに合わせて生成モードを切り替え
-	switch models.TextbookType(typeStr) {
-	case models.Type4Choice, models.TypeFillIn4Choice:
-		resultItems, err = service.Generate4ChoiceWorkbookForQAndA(keywords, typeStr)
-	case models.TypeFillIn, models.TypeInput:
-		resultItems, err = service.GenerateWorkbookForQAndA(keywords, typeStr)
-	default:
-		// 万が一未対応のタイプなら、デフォルトで記述式生成を試みる
-		resultItems, err = service.GenerateWorkbookForQAndA(keywords, typeStr)
-	}
-
+	_, err = service.GenerateAndSaveBatch(textbookID, typeStr, keywords)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Generation failed: " + err.Error()})
 		return
 	}
 
-	// DB保存
-	var finalQuestions []dtos.ResultItem
-	for i, item := range resultItems {
-		currentAnswer := ""
-		if i < len(keywords) {
-			currentAnswer = keywords[i]
-		}
-
-		id, err := service.SaveQuestionToDB(textbookID, item, currentAnswer)
-		if err != nil {
-			fmt.Println("Save Error:", err)
-			continue
-		}
-		
-		item.ID = id
-		finalQuestions = append(finalQuestions, item)
+	// ---------------------------------------------------
+	// 5. レスポンス 
+	// ---------------------------------------------------
+	textbookIDStr := strconv.Itoa(int(textbookID))
+	resultDTO, err := service.GetTextbookDetail(textbookIDStr)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get textbook detail"})
+		return
 	}
 
-	// ---------------------------------------------------
-	// 5. レスポンス (完成！)
-	// ---------------------------------------------------
-	c.Status(http.StatusNoContent)
+	// 指定されたJSON形式 { "textbook": { ... } } で返す
+	c.JSON(http.StatusOK, gin.H{
+		"textbook": gin.H{
+			"id":         resultDTO.ID,
+			"name":       resultDTO.Name,
+			"type":       resultDTO.Type,
+			"questions":  resultDTO.Questions,
+		},
+	})
 }
 
 //pdfを受けって、重要単語を抽出して返す
