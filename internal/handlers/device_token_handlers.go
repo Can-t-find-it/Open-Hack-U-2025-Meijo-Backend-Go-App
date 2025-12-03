@@ -16,8 +16,7 @@ func NewDeviceHandler() *DeviceHandler {
 
 func (h *DeviceHandler) SaveDeviceToken(c *gin.Context) {
     var req struct {
-        UserID uint   `json:"user_id"`
-        Token  string `json:"token"`
+        Token string `json:"token"`
     }
 
     if err := c.BindJSON(&req); err != nil {
@@ -25,12 +24,20 @@ func (h *DeviceHandler) SaveDeviceToken(c *gin.Context) {
         return
     }
 
+    // JWT から userID を取得
+    userID := c.GetUint("userID") // ミドルウェアでセットされている前提
+    if userID == 0 {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "ユーザー認証に失敗しました"})
+        return
+    }
+
     // 既存トークンを上書きする
-    database.DB.Where("user_id = ?", req.UserID).Delete(&models.UserDeviceToken{})
+    database.DB.Where("user_id = ?", userID).Delete(&models.UserDeviceToken{})
     database.DB.Create(&models.UserDeviceToken{
-        UserID: req.UserID,
+        UserID: userID,
         Token:  req.Token,
     })
 
     c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
+
