@@ -48,5 +48,6 @@ func (h *AddTextbookHandler) ImportTextbook(c *gin.Context) {
 	}
 
 	// 4. 【提供】 成功レスポンス (201 Created)
-	c.JSON(http.StatusCreated, gin.H{"message": "教科書をインポートしました"})
+	// c.JSON(http.StatusCreated, gin.H{"message": "教科書をインポートしました"})
+	c.Status(http.StatusNoContent)
 }
