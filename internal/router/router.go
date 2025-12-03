@@ -66,8 +66,9 @@ func SetupRouter() *gin.Engine {
 			protected.POST("/generate_problem", handlers.GenerateProblemHandler)
 
 			// === 教科書・フォルダ管理機能 ===
-      		protected.POST("/folders", handlers.CreateFolderHandler)
-      		protected.DELETE("/folders", handlers.DeleteFolderHandler)
+
+			protected.POST("/folders", handlers.CreateFolderHandler)
+			protected.DELETE("/folders", handlers.DeleteFolderHandler)
 			protected.GET("/textbooks", handlers.GetTextbooksHandler)
 			protected.POST("/textbooks", handlers.CreateTextbookHandler)
 			protected.GET("/textbook/:id", handlers.GetTextbookDetailHandler)
@@ -79,6 +80,9 @@ func SetupRouter() *gin.Engine {
 			protected.DELETE("/question/:id", handlers.DeleteQuestionHandler)
 			protected.POST("/questionstatements", handlers.AddQuestionStatementHandler)
 			protected.DELETE("/questionstatements/:id", handlers.DeleteQuestionStatementHandler)
+
+			// === ユーザー情報取得 ===
+			protected.GET("/user/status", handlers.GetUserStatus)
 
 			// === その他 ===
 			protected.GET("/word", handlers.SuggestWordHandler)
@@ -105,7 +109,6 @@ func SetupRouter() *gin.Engine {
 
 			// === ペナルティ通知機能 ===
 			protected.POST("/penalty/check", handlers.NewPenaltyHandler().CheckPenalty)
-
 			protected.POST("/device_token", deviceHandler.SaveDeviceToken)
 
 		}
