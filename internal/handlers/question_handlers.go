@@ -293,7 +293,7 @@ func UpdateTextbookResultHandler(c *gin.Context) {
 		return
 	}
 
-	err := service.UpdateTextbookStatus(textbookID, req.Score)
+	err := service.UpdateTextbookStatus(textbookID, req.Score, c.GetString("userID"))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

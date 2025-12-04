@@ -2,9 +2,13 @@ package service
 
 import (
 	"fmt"
+	"time"
+
 	"hacku_2025_meijo/internal/database" // DB接続変数 (DB) がある場所
 	"hacku_2025_meijo/internal/dtos"
 	"hacku_2025_meijo/internal/models"
+
+	"github.com/google/uuid"
 )
 
 // ==========================================
@@ -185,18 +189,48 @@ func GetRandomSuggestedWords(limit int) ([]string, error) {
 }
 
 // UpdateTextbookStatus: 教科書のスコアと回数を更新する（学習後に呼ぶ用）
-func UpdateTextbookStatus(textbookID string, newScore float64) error {
+func UpdateTextbookStatus(textbookID string, newScore float64, userID string) error {
 	var textbook models.Textbook
 	if err := database.DB.First(&textbook, "id = ?", textbookID).Error; err != nil {
 		return err
 	}
+	var user models.User
+	if err := database.DB.First(&user, "id = ?", userID).Error; err != nil {
+		return err
+	}
+
 
 	// 回数を+1
 	textbook.PlayTimes += 1
 	// スコア履歴に追加
 	textbook.ScoreHistory = append(textbook.ScoreHistory, newScore)
+	if err := database.DB.Save(&textbook).Error; err != nil {
+		return err
+	}
 
-	return database.DB.Save(&textbook).Error
+	studyLog := models.StudyLog{
+		ID:            uuid.New().String(),
+		UserID:        userID,
+		TextbookID:    textbookID,
+		Score:         newScore,
+		AnsweredAt:    time.Now(),
+
+		
+		// ★ここで名前を保存します（スナップショット）
+		Name:          user.Name,      // "しまけん"
+		TextbookName:  textbook.Name,  // "アルゴリズム演習"
+		Accuracy:      newScore,       // 今回はスコアをそのまま正答率として扱う
+		TodayProgress: 1,              // (仮) 1回分進んだ
+	}
+
+	if err := database.DB.Create(&studyLog).Error; err != nil {
+		return err
+	}
+
+	// 5. フォルダ進捗更新 (定義されていれば)
+	// return updateFolderProgress(textbook.FolderID)
+	
+	return nil
 }
 
 // DeleteFolder: フォルダを削除する（中身も全消去）
