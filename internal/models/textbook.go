@@ -4,6 +4,16 @@ import (
 	"time"
 )
 
+type TextbookType string
+
+// 定数をその型で定義する
+const (
+	Type4Choice       TextbookType = "4択問題形式"
+	TypeFillIn        TextbookType = "穴埋め入力"
+	TypeFillIn4Choice TextbookType = "穴埋め4択"
+	TypeInput         TextbookType = "入力"
+)
+
 // Folder: 科目や資格ごとのフォルダ
 // 例: "基本情報技術者試験", "TOEIC"
 type Folder struct {
@@ -26,7 +36,7 @@ type Textbook struct {
 	FolderID        uint   `json:"folderId"`
 	UserID          uint   `json:"user_id"` // 上野追加部分．この問題集の所有者ID
 	Name            string `json:"name"`
-	Type            string `json:"type"`            // "4択問題形式" など
+	Type            TextbookType `json:"type"`            // "4択問題形式" など
 	StudyMaterialID *uint  `json:"studyMaterialId"` // 元資料ID(任意)
 
 	// ↓【追加】仕様変更に対応

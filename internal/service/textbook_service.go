@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"hacku_2025_meijo/internal/database" // DB接続変数 (DB) がある場所
 	"hacku_2025_meijo/internal/dtos"
 	"hacku_2025_meijo/internal/models"
@@ -10,12 +11,11 @@ import (
 // 教科書・フォルダ操作 (DB関連)
 // ==========================================
 
-// GetUserTextbooks: ユーザーのフォルダと問題集一覧を全部取得
-func GetUserTextbooks(userID uint) ([]models.Folder, error) {
+// GetUserTextbooks: ユーザーのフォルダと、その中の問題集一覧を全部取得
+func GetUserTextbooks(userID uint) ([]dtos.FolderResponse, error) {
 	var folders []models.Folder
 
-	// Preloadを使って、Folder -> Textbooks まで一気に取得する
-	// DB変数は internal/database/db.go で定義されている "DB" を使用
+	// 1. DBから全データを取得 (ここは変わらず)
 	result := database.DB.
 		Preload("Textbooks").
 		Where("user_id = ?", userID).
@@ -24,11 +24,35 @@ func GetUserTextbooks(userID uint) ([]models.Folder, error) {
 	if result.Error != nil {
 		return nil, result.Error
 	}
-	return folders, nil
+
+	// 2. 必要なデータだけを「詰め替え」作業
+	var response []dtos.FolderResponse
+
+	for _, f := range folders {
+		// 教科書リストの詰め替え
+		var currentTextbooks []dtos.TextbookResponse
+		for _, t := range f.Textbooks {
+			currentTextbooks = append(currentTextbooks, dtos.TextbookResponse{
+				ID:   t.ID,
+				Name: t.Name,
+				Type: string(t.Type),
+			})
+		}
+
+		// フォルダの詰め替え
+		response = append(response, dtos.FolderResponse{
+			ID:        f.ID,
+			Name:      f.Name,
+			Progress:  f.Progress,
+			Textbooks: currentTextbooks,
+		})
+	}
+
+	return response, nil
 }
 
 // GetTextbookDetail: 問題集の詳細（中の問題リスト含む）を取得
-func GetTextbookDetail(textbookID string) (*models.Textbook, error) {
+func GetTextbookDetail(textbookID string) (*dtos.TextbookDetailResponse, error) {
 	var textbook models.Textbook
 
 	// Textbook -> Questions -> QuestionStatements という深い階層を取得
@@ -39,24 +63,61 @@ func GetTextbookDetail(textbookID string) (*models.Textbook, error) {
 	if result.Error != nil {
 		return nil, result.Error
 	}
-	return &textbook, nil
+	
+	var questionsResp []dtos.QuestionResponse
+	for _, q := range textbook.Questions {
+		var statementsResp []dtos.QuestionStatementResponse
+		for _, s := range q.QuestionStatements {
+			statementsResp = append(statementsResp, dtos.QuestionStatementResponse{
+				ID:                s.ID,
+				QuestionStatement: s.Statement,
+				Choices:           s.Choices,
+				Explain:          s.Explain,
+			})
+		}
+		questionsResp = append(questionsResp, dtos.QuestionResponse{
+			ID:                 q.ID,
+			Answer:             q.Answer,
+			QuestionStatements: statementsResp,
+		})
+	}
+
+	response := &dtos.TextbookDetailResponse{
+		ID:        textbook.ID,
+		Name:      textbook.Name,
+		Type:      string(textbook.Type),
+		Questions: questionsResp,
+		Score:     textbook.ScoreHistory,
+		Times:     textbook.PlayTimes,
+	}
+
+	return response, nil
 }
 
 // CreateTextbook: 新しい問題集を作成
+// 引数の typeStr は、ユーザーからの入力なので string のままでOK
 func CreateTextbook(name string, typeStr string, folderID uint) error {
+	
+	// 1. 入力された文字列を、専用の型にキャスト（変換）してみる
+	inputType := models.TextbookType(typeStr)
+
+	// 2. 許可リスト（スイッチ文を使うとスッキリします）
+	switch inputType {
+	case models.Type4Choice, models.TypeFillIn, models.TypeFillIn4Choice, models.TypeInput:
+		// OK！何もしない
+	default:
+		// NG！
+		return fmt.Errorf("無効なタイプです: %s", typeStr)
+	
+	}
+
+	// 3. 保存処理
 	newTextbook := models.Textbook{
 		Name:     name,
-		Type:     typeStr,
+		Type:     inputType, // ここで型付きのデータを渡す
 		FolderID: folderID,
 	}
 	result := database.DB.Create(&newTextbook)
-	return result.Error
-}
-
-// DeleteTextbook: 問題集を削除
-func DeleteTextbook(textbookID string) error {
-	// Cascade設定がModelにあれば、関連するQuestionも消える
-	result := database.DB.Delete(&models.Textbook{}, "id = ?", textbookID)
 	return result.Error
 }
 
@@ -94,10 +155,11 @@ func AddQuestionToTextbook(textbookID uint, item dtos.ResultItem, answer string)
 // 未実装だった削除・追加機能 (Question / QuestionStatement)
 // ----------------------------------------------------
 
-// DeleteQuestion: 問題（親）を削除
-// これを消すと、紐付いている問題文（子）も全部消えます（CASCADE設定のため）
+// DeleteQuestions: 問題を削除する
 func DeleteQuestion(questionID string) error {
-	result := database.DB.Delete(&models.Question{}, "id = ?", questionID)
+	// 指定されたIDリストの問題をまとめて削除
+	// OnDelete:CASCADE設定により、紐付くQuestionStatementも自動で消えます
+	result := database.DB.Unscoped().Where("id = ?", questionID).Delete(&models.Question{})
 	return result.Error
 }
 
@@ -120,22 +182,23 @@ func DeleteQuestionStatement(statementID string) error {
 	return result.Error
 }
 
-// GetSuggestedWord: 覚えたい単語を提案する
-// 今回は仮として「DBにある問題の正解」からランダムに1つ取得して返します
-func GetSuggestedWord() (string, error) {
-	var question models.Question
+// GetRandomSuggestedWords: ランダムに指定個数の単語を取得する
+func GetRandomSuggestedWords(limit int) ([]string, error) {
+	var questions []models.Question
 	
-	// ORDER BY RANDOM() でランダムに1件取得 (PostgreSQLの場合)
-	// MySQLなら "RAND()" を使用
-	result := database.DB.Order("RANDOM()").First(&question)
+	// Limit(limit) で個数を指定
+	result := database.DB.Order("RANDOM()").Limit(limit).Find(&questions)
 	
 	if result.Error != nil {
-		return "", result.Error
+		return nil, result.Error
 	}
 	
-	return question.Answer, nil // 正解の単語を返す
+	var words []string
+	for _, q := range questions {
+		words = append(words, q.Answer)
+	}
+	return words, nil
 }
-
 // UpdateTextbookStatus: 教科書のスコアと回数を更新する（学習後に呼ぶ用）
 func UpdateTextbookStatus(textbookID string, newScore float64) error {
 	var textbook models.Textbook
@@ -152,10 +215,10 @@ func UpdateTextbookStatus(textbookID string, newScore float64) error {
 }
 
 // DeleteFolder: フォルダを削除する（中身も全消去）
-func DeleteFolder(folderID string) error {
+func DeleteFoldersBatch(folderIDs []string) error {
 	// Unscoped() をつけると、論理削除ではなく物理削除（完全に消す）になります
 	// 構成によっては Unscoped なしでもOKですが、今回は確実に消すために付けます
-	result := database.DB.Unscoped().Delete(&models.Folder{}, "id = ?", folderID)
+	result := database.DB.Unscoped().Delete(&models.Folder{}, "id IN ?", folderIDs)
 	return result.Error
 }
 
@@ -174,4 +237,13 @@ func GetWordsInTextbook(textbookID string) ([]string, error) {
 		words = append(words, q.Answer)
 	}
 	return words, nil
+}
+
+func DeleteTextbook(textbookIDs string) error {
+	// 指定されたIDのTextbookを削除
+	// OnDelete:CASCADE設定があるため、中身の問題なども連鎖して削除されます
+	if err := database.DB.Delete(&models.Textbook{}, "id = ?", textbookIDs).Error; err != nil {
+		return err
+	}
+	return nil
 }

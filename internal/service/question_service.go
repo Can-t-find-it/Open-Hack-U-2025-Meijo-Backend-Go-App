@@ -13,7 +13,9 @@ import (
 	"hacku_2025_meijo/internal/database"
 	"hacku_2025_meijo/internal/dtos" // DTOsパッケージをインポート
 	"hacku_2025_meijo/internal/models"
+
 )
+
 
 // OpenAI APIエンドポイント
 const openaiAPIURL = "https://api.openai.com/v1/chat/completions"
@@ -83,15 +85,27 @@ func GenerateWorkbookForQAndA(answers []string, pattern string) ([]dtos.ResultIt
 	answerListStr, _ := json.Marshal(answers)
 
 	prompt := fmt.Sprintf(`
-	次の複数の単語に関する問題文，及び解説を作成してください．
-	解答形式は以下のようにしてください．それ以外の文字は完全に必要ありません．
-	パターンによって問題の種別を変えてください．パターンには”1問1答”,”穴埋め”の2種類が存在します．
+	あなたは厳格な問題作成マシーンです。
+	提供された「ターゲット単語リスト」の各単語に対して、【必ず1単語につき1問ずつ】問題を作成してください。
 
-	単語群：%s
-	パターン:%s
+	ターゲット単語リスト: %s
+	作成パターン: %s
 
-	// ... (プロンプトのフォーマット指示の続き) ...
+	【絶対守るべきルール】
+	1. 出力する問題数は、入力された単語数と完全に一致させること。
+	2. 出力の順番は、入力リストの順番と一致させること。
+	3. 1つの単語に対して複数の問題を作らないこと。
 
+	【出力フォーマット】
+	以下の形式（区切り文字 "（）"）のみを出力してください。挨拶は不要です。
+
+	---
+	問題文: (1つ目の単語の問題)
+	解説: (1つ目の単語の解説)
+	---
+	問題文: (2つ目の単語の問題)
+	解説: (2つ目の単語の解説)
+	---
 	`, string(answerListStr), pattern)
 
 	apiResp, err := callOpenAIAPI(prompt)
@@ -152,19 +166,20 @@ func generateQuestion4ChoicePrompt(answer string, pattern string, existingQuesti
 	あなたは教育用の問題作成アシスタントです。
 	与えられた単語を答えとする問題を1つ作成してください。
 
-	条件:
-	- 答えは必ず「%s」になること。
-	- 選択肢は必ず4つ用意してください（1つは正解、3つは誤答）。
-	- 出力フォーマットは厳守してください。
-	- 既存の問題文とは異なる新しい問題文を生成してください。
+	ターゲット単語: %s
+	作成パターン: %s
 	既存の問題文: %s
 
-	問題形式の指定:
-	- %s に従って問題を作成してください。
-	- "1問1答" の場合: 通常の四択問題形式。
-	- "穴埋め" の場合: 問題文の中に空欄（（ ））を入れて四択問題を作成。
-
+	【重要：作成パターンの定義】
+	- "4択問題形式" の場合: スタンダードなクイズを作成してください。（例：「～は何？」）
+	- "穴埋め4択" の場合: 問題文の中に空欄（）を作り、そこに入る言葉を答えさせてください。（例：「～は（）である」）
 	出力フォーマット（必ず守ってください）:
+
+	【条件】
+	- 選択肢は必ず4つ（正解1、誤答3）作成すること。
+	- 出力フォーマットを厳守すること。
+	
+	【出力フォーマット】
 	問題: ...
 	選択肢:
 	A: ...
@@ -259,25 +274,38 @@ func Generate4ChoiceWorkbookForQAndA(answers []string, pattern string) ([]dtos.R
 	return results, nil
 }
 
-// SaveQuestionToDB: 生成された問題を、教科書・問題・問題文の階層構造で保存する
+
+// SaveQuestionToDB: 生成された問題を保存する（重複チェック付き）
 func SaveQuestionToDB(textbookID uint, item dtos.ResultItem, answer string) (uint, error) {
 
-	// 1. 親データ（Question）を作成
-	question := models.Question{
-		TextbookID: textbookID, // ここで教科書と紐付け
-		Answer:     answer,     // 正解の単語
-		// 2. 子データ（QuestionStatement）を作成
-		QuestionStatements: []models.QuestionStatement{
-			{
-				Statement: item.Question,    // 問題文
-				Explain:   item.Explanation, // 解説
-				Choices:   item.Options,     // 選択肢 (GORMが自動でJSON化)
-			},
-		},
+	// 1. まず、同じ教科書の中に「同じ答え(Answer)」の問題が既にないか探す
+	var question models.Question
+	
+	// "textbook_id" と "answer" が一致するものを探す
+	result := database.DB.Where("textbook_id = ? AND answer = ?", textbookID, answer).First(&question)
+
+	if result.Error != nil {
+		// 見つからなかった場合（新規作成）
+		question = models.Question{
+			TextbookID: textbookID,
+			Answer:     answer,
+		}
+		// まず親を作る
+		if err := database.DB.Create(&question).Error; err != nil {
+			return 0, err
+		}
 	}
 
-	// 3. DBに保存
-	if err := database.DB.Create(&question).Error; err != nil {
+	// 2. 子データ（QuestionStatement）を追加する
+	// 親のID (question.ID) を紐付ける
+	newStatement := models.QuestionStatement{
+		QuestionID: question.ID,
+		Statement:  item.Question,
+		Explain:    item.Explanation,
+		Choices:    item.Options,
+	}
+
+	if err := database.DB.Create(&newStatement).Error; err != nil {
 		return 0, err
 	}
 
@@ -310,7 +338,7 @@ func GenerateAndAddStatement(questionID uint) (*models.QuestionStatement, error)
 
 	// 3. 教科書のタイプをパターンとして使用
 	// 例: textbook.Type が "4択問題形式" なら、それがそのままAIへの指示になる
-	pattern := parentQuestion.Textbook.Type
+	pattern :=string (parentQuestion.Textbook.Type)
 
 	// 4. AIに生成を依頼
 	// existingTexts を渡すことで、AIは「これらと被らない、違う方向性の問題」を作ろうとします
@@ -351,29 +379,99 @@ func CreateFolder(userID uint, name string) (*models.Folder, error) {
 }
 
 // SuggestNewWordViaAI: 既存の単語リストを元に、AIに新しい単語を提案させる
-func SuggestNewWordViaAI(currentWords []string) (string, error) {
+func SuggestNewWordsViaAI(currentWords []string) ([]string, error) {
 	// 単語リストを文字列にする（例: "バイナリ, クラウド, サーバー"）
 	wordsStr := strings.Join(currentWords, ", ")
 
 	prompt := fmt.Sprintf(`
-	あなたは学習のアドバイザーです。
-	ある学生が以下の単語を学習しています。
+	あなたはIT学習のカリキュラム作成者です。
+	ある学生が以下の単語を「既に学習済み」です。
 	学習済み単語: [%s]
 
-	この学生が次に覚えるべき、関連性の高い「新しい重要単語」を1つだけ提案してください。
-	
-	条件:
-	- 学習済み単語に含まれているものは除外してください。
-	- 出力は「単語のみ」にしてください（解説などは不要）。
-	- 日本語で答えてください。
+	この学生が次にステップアップするために覚えるべき、関連性の高い「まだ学習していない新しい単語」を3つ提案してください。
+
+	【絶対的な禁止事項】
+	・上記の「学習済み単語」に含まれる単語は、**絶対に出力しないでください**。
+	・同じ単語を繰り返さないでください。
+
+	【出力形式】
+	「単語1,単語2,単語3」のようにカンマ区切りで単語のみを出力すること。解説不要。
 	`, wordsStr)
 
 	apiResp, err := callOpenAIAPI(prompt)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	// 余計な空白などを除去して返す
-	suggestedWord := strings.TrimSpace(apiResp.Choices[0].Message.Content)
-	return suggestedWord, nil
+	rawContent := strings.TrimSpace(apiResp.Choices[0].Message.Content)
+	rawContent = strings.ReplaceAll(rawContent, "、", ",")
+	rawList := strings.Split(rawContent, ",")
+
+	// 重複フィルター処理
+	var resultList []string
+	
+	// 1. 既存単語をマップに登録（検索を速くするため）
+	existingMap := make(map[string]bool)
+	for _, w := range currentWords {
+		existingMap[strings.TrimSpace(w)] = true
+	}
+
+	// 2. AIの提案をチェックして、知らない単語だけ追加する
+	for _, w := range rawList {
+		cleanWord := strings.TrimSpace(w)
+		// 空文字でなく、かつ既存リストに含まれていない場合のみ追加
+		if cleanWord != "" && !existingMap[cleanWord] {
+			resultList = append(resultList, cleanWord)
+		}
+	}
+
+	// 結果が0個なら空リストを返す（無理やりDBから取らない）
+	if len(resultList) == 0 {
+		fmt.Println("AIからの提案がすべて重複していたため、候補なし(0件)を返します。")
+		return []string{}, nil
+	}
+
+	return resultList, nil
+}
+
+// GenerateAndSaveBatch: 単語リストから問題を一括生成し、指定の教科書に保存する（共通機能）
+func GenerateAndSaveBatch(textbookID uint, textbookType string, answers []string) ([]dtos.ResultItem, error) {
+	var resultItems []dtos.ResultItem
+	var err error
+
+	// 1. AI生成
+	switch models.TextbookType(textbookType) {
+	case models.Type4Choice, models.TypeFillIn4Choice:
+		resultItems, err = Generate4ChoiceWorkbookForQAndA(answers, textbookType)
+	case models.TypeFillIn, models.TypeInput:
+		resultItems, err = GenerateWorkbookForQAndA(answers, textbookType)
+	default:
+		// 未知のタイプなら記述式でトライ
+		resultItems, err = GenerateWorkbookForQAndA(answers, textbookType)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. DB保存 & ID埋め込み
+	var finalQuestions []dtos.ResultItem
+	for i, item := range resultItems {
+		currentAnswer := ""
+		if i < len(answers) {
+			currentAnswer = answers[i]
+		}
+
+		id, err := SaveQuestionToDB(textbookID, item, currentAnswer)
+		if err != nil {
+			// エラーログを出して続行
+			fmt.Println("Save Error:", err)
+			continue
+		}
+		
+		item.ID = id
+		finalQuestions = append(finalQuestions, item)
+	}
+
+	return finalQuestions, nil
 }
