@@ -470,7 +470,7 @@ func CreateFolderHandler(c *gin.Context) {
 	// 		"userId": folder.UserID,
 	// 	},
 	// })
-	c.Status(http.StatusNoContent)	//そーしろーの要望に合わせましたby.上野
+	c.Status(http.StatusNoContent) //そーしろーの要望に合わせましたby.上野
 }
 
 // DELETE /api/folders/:id - フォルダ削除
@@ -496,7 +496,8 @@ func DeleteFolderHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"folderIds": req.FolderIDs,
-	})
+	// c.JSON(http.StatusOK, gin.H{
+	// 	"folderIds": req.FolderIDs,
+	// })
+	c.Status(http.StatusNoContent) // そーしろーの要望に合わせましたby.上野
 }
