@@ -242,19 +242,28 @@ func CreateTextbookHandler(c *gin.Context) {
 	var req struct {
 		Name     string `json:"name"`
 		Type     string `json:"type"`
-		FolderID uint   `json:"folderId"`
+		FolderID string `json:"folderId"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	err := service.CreateTextbook(req.Name, req.Type, req.FolderID)
+	folderIdUint, err := strconv.ParseUint(req.FolderID, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "フォルダーIDの形式がエラーです.Stringにしてください."})
+		return
+	}
+
+	folderIdUintConv := uint(folderIdUint)
+
+	err = service.CreateTextbook(req.Name, req.Type, folderIdUintConv)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"message": "Textbook created"})
+	// c.JSON(http.StatusCreated, gin.H{"message": "Textbook created"})
+	c.Status(http.StatusNoContent)
 }
 
 // GET /api/textbook/:id - 教科書詳細取得
@@ -276,7 +285,8 @@ func DeleteTextbookHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Textbook deleted"})
+	// c.JSON(http.StatusOK, gin.H{"message": "Textbook deleted"})
+	c.Status(http.StatusNoContent)
 }
 
 // POST /api/textbook_result - 学習結果保存
