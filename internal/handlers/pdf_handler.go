@@ -2,10 +2,10 @@ package handlers
 
 import (
 	"net/http"
-	"strconv"
 
-	"github.com/gin-gonic/gin"
+	"hacku_2025_meijo/internal/dtos"
 	"hacku_2025_meijo/internal/database"
+	"github.com/gin-gonic/gin"
 	"hacku_2025_meijo/internal/models"
 	"hacku_2025_meijo/internal/service"
 )
@@ -24,13 +24,13 @@ func UploadPDFHandler(c *gin.Context) {
 		return
 	}
 
-	// フォルダID
-	folderIDStr := c.PostForm("folder_id")
-	if folderIDStr == "" {
+	// フォルダID (stringのまま受け取る)
+	folderID := c.PostForm("folder_id")
+	if folderID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "folder_id is required"})
 		return
 	}
-	folderID, _ := strconv.Atoi(folderIDStr)
+	// ★修正: 数値変換を削除
 
 	// 教科書名
 	name := c.PostForm("name")
@@ -48,23 +48,21 @@ func UploadPDFHandler(c *gin.Context) {
 	// 2. 教科書を新規作成する
 	// ---------------------------------------------------
 	
-	// ServiceのCreateTextbookを使ってDBに保存
-	err = service.CreateTextbook(name, typeStr, folderIDStr)
+	// ★修正: folderIDをstringのまま渡す
+	err = service.CreateTextbook(name, typeStr, folderID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Textbook creation failed: " + err.Error()})
 		return
 	}
 
 	// 作成されたばかりの教科書のIDを取得したいので、検索して特定する
-	// (CreateTextbookがIDを返さない仕様の場合は、最新の1件を取得するなどの工夫が必要ですが、
-	//  今回は簡易的に「今作ったやつ」を取得します)
 	var newTextbook models.Textbook
 	// フォルダIDと名前で検索して、一番新しいものを取得
 	if err := database.DB.Where("folder_id = ? AND name = ?", folderID, name).Order("created_at desc").First(&newTextbook).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve created textbook"})
 		return
 	}
-	textbookID := newTextbook.ID
+	textbookID := newTextbook.ID // string型
 
 	// ---------------------------------------------------
 	// 3. PDF解析 & 単語抽出
@@ -94,6 +92,7 @@ func UploadPDFHandler(c *gin.Context) {
 	// ---------------------------------------------------
 	// 4. 問題生成 & 保存
 	// ---------------------------------------------------
+	// ★修正: textbookID(string)をそのまま渡す
 	_, err = service.GenerateAndSaveBatch(textbookID, typeStr, keywords)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Generation failed: " + err.Error()})
@@ -101,10 +100,11 @@ func UploadPDFHandler(c *gin.Context) {
 	}
 
 	// ---------------------------------------------------
-	// 5. レスポンス 
+	// 5. レスポンス (整形して返す)
 	// ---------------------------------------------------
-	textbookIDStr := textbookID
-	resultDTO, err := service.GetTextbookDetail(textbookIDStr)
+	
+	// ★修正: textbookIDは既にstringなので変換不要
+	resultDTO, err := service.GetTextbookDetail(textbookID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get textbook detail"})
 		return
@@ -112,11 +112,18 @@ func UploadPDFHandler(c *gin.Context) {
 
 	// 指定されたJSON形式 { "textbook": { ... } } で返す
 	c.JSON(http.StatusOK, gin.H{
-		"textbook": gin.H{
-			"id":         resultDTO.ID,
-			"name":       resultDTO.Name,
-			"type":       resultDTO.Type,
-			"questions":  resultDTO.Questions,
+		"textbook": struct {
+			ID        string                   `json:"id"`
+			Name      string                   `json:"name"`
+			Type      string                   `json:"type"`      // ★ここ！Nameの下、Questionsの上に配置
+			Questions []dtos.QuestionResponse  `json:"questions"`
+			// Score     []float64                `json:"score,omitempty"` // 必要ならコメントアウト解除
+			// Times     int                      `json:"times,omitempty"` // 必要ならコメントアウト解除
+		}{
+			ID:        resultDTO.ID,
+			Name:      resultDTO.Name,
+			Type:      resultDTO.Type,
+			Questions: resultDTO.Questions,
 		},
 	})
 }

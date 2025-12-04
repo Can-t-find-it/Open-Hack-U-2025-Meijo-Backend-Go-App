@@ -61,7 +61,7 @@ func SetupRouter() *gin.Engine {
 		{
 
 			// 問題文生成
-			
+
 			protected.POST("/generate_statement/:question_id", handlers.GenerateAndAddStatementHandler)
 			// 総合問題生成
 			protected.POST("/generate_problem/:textbook_id", handlers.GenerateProblemHandler)
@@ -75,6 +75,8 @@ func SetupRouter() *gin.Engine {
 			protected.GET("/textbook/:id", handlers.GetTextbookDetailHandler)
 			protected.DELETE("/textbook/:id", handlers.DeleteTextbookHandler)
 			protected.POST("/textbook/:id/result", handlers.UpdateTextbookResultHandler)
+
+			protected.POST("/textbook/:id/studylog", handlers.NewStudyLogHandler().CreateStudyLogHandler)
 
 			// === 問題・問題文の操作 ===
 			protected.POST("/question", handlers.AddQuestionHandler)
@@ -98,9 +100,7 @@ func SetupRouter() *gin.Engine {
 			protected.DELETE("/friend/change/:id", friendChangeHandler.DeleteFriendsBatch)
 			protected.GET("/friend/change", friendChangeHandler.GetFriends)
 
-
 			protected.POST("/friend/studylog", friendStudyLogHandler.GetFriendLog)
-
 
 			// フレンド問題集取得
 			protected.GET("/friend/textbooks", friendTextbookHandler.GetTextbooks)
@@ -110,8 +110,8 @@ func SetupRouter() *gin.Engine {
 			protected.POST("/penalty/check", handlers.NewPenaltyHandler().CheckPenalty)
 			protected.POST("/device_token", deviceHandler.SaveDeviceToken)
 
-            //=== PDFアップロード機能 ===
-            protected.POST("/upload_pdf", handlers.UploadPDFHandler)
+			//=== PDFアップロード機能 ===
+			protected.POST("/upload_pdf", handlers.UploadPDFHandler)
 			protected.POST("/extract_keywords/:textbook_id", handlers.ExtractKeywordsFromTextHandler)
 
 		}

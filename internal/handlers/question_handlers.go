@@ -3,11 +3,12 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/gin-gonic/gin"
-	"hacku_2025_meijo/internal/dtos"
-	"hacku_2025_meijo/internal/service"
-	"hacku_2025_meijo/internal/models"
 	"hacku_2025_meijo/internal/database"
+	"hacku_2025_meijo/internal/dtos"
+	"hacku_2025_meijo/internal/models"
+	"hacku_2025_meijo/internal/service"
+
+	"github.com/gin-gonic/gin"
 )
 
 // ==========================================
@@ -285,7 +286,7 @@ func UpdateTextbookResultHandler(c *gin.Context) {
 	textbookID := c.Param("id")
 
 	var req struct {
-		Score      float64 `json:"score"`
+		Score float64 `json:"score"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON: " + err.Error()})
@@ -328,7 +329,6 @@ func AddQuestionHandler(c *gin.Context) {
 
 // DELETE /api/question/:id - 問題（親）ごとの削除
 func DeleteQuestionHandler(c *gin.Context) {
-	
 
 	questionID := c.Param("id")
 
@@ -380,11 +380,10 @@ func DeleteQuestionStatementHandler(c *gin.Context) {
 // GET /api/word - 覚えたい単語提案 (AI版)
 func SuggestWordHandler(c *gin.Context) {
 
-	textbookID := c.Param("textbook_id")
-
+	textbookID := c.Param("id")
 
 	if textbookID == "" {
-		textbookID = c.Query("textbook_id")
+		textbookID = c.Query("id")
 	}
 
 	var suggestedWords []string // 配列に変更
@@ -421,6 +420,7 @@ func SuggestWordHandler(c *gin.Context) {
 		"suggestWord": suggestedWords,
 	})
 }
+
 // POST /api/generate_statement
 func GenerateAndAddStatementHandler(c *gin.Context) {
 	// 1. URLからIDを取得 (パスパラメータ)

@@ -33,7 +33,7 @@ func (s *GetFriendStudyLogService) GetFriendStudyLog(userId string) (*dtos.AllFr
 		dto := dtos.FriendStudyLog{
 			ID: log.ID,
 			FriendID:   log.UserID,
-			FriendName: log.FriendName,
+			FriendName: log.Name,
 			AnsweredAt: log.AnsweredAt,
 			TextbookName: log.TextbookName,
 			Accuracy: log.Accuracy,

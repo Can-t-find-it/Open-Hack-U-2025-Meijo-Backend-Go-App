@@ -66,7 +66,7 @@ func GetTextbookDetail(textbookID string) (*dtos.TextbookDetailResponse, error) 
 	if result.Error != nil {
 		return nil, result.Error
 	}
-	
+
 	var questionsResp []dtos.QuestionResponse
 	for _, q := range textbook.Questions {
 		var statementsResp []dtos.QuestionStatementResponse
@@ -75,7 +75,7 @@ func GetTextbookDetail(textbookID string) (*dtos.TextbookDetailResponse, error) 
 				ID:                s.ID,
 				QuestionStatement: s.Statement,
 				Choices:           s.Choices,
-				Explain:          s.Explain,
+				Explain:           s.Explain,
 			})
 		}
 		questionsResp = append(questionsResp, dtos.QuestionResponse{
@@ -111,7 +111,7 @@ func CreateTextbook(name string, typeStr string, folderID string) error {
 	default:
 		// NG！
 		return fmt.Errorf("無効なタイプです: %s", typeStr)
-	
+
 	}
 
 	// 3. 保存処理
@@ -169,20 +169,21 @@ func DeleteQuestionStatement(statementID string) error {
 // GetRandomSuggestedWords: ランダムに指定個数の単語を取得する
 func GetRandomSuggestedWords(limit int) ([]string, error) {
 	var questions []models.Question
-	
+
 	// Limit(limit) で個数を指定
 	result := database.DB.Order("RANDOM()").Limit(limit).Find(&questions)
-	
+
 	if result.Error != nil {
 		return nil, result.Error
 	}
-	
+
 	var words []string
 	for _, q := range questions {
 		words = append(words, q.Answer)
 	}
 	return words, nil
 }
+
 // UpdateTextbookStatus: 教科書のスコアと回数を更新する（学習後に呼ぶ用）
 func UpdateTextbookStatus(textbookID string, newScore float64) error {
 	var textbook models.Textbook
@@ -209,7 +210,7 @@ func DeleteFoldersBatch(folderIDs []string) error {
 // GetWordsInTextbook: 教科書に含まれる全ての正解単語を取得する
 func GetWordsInTextbook(textbookID string) ([]string, error) {
 	var questions []models.Question
-	
+
 	// 指定された教科書のQuestionを全部取ってくる
 	result := database.DB.Where("textbook_id = ?", textbookID).Find(&questions)
 	if result.Error != nil {

@@ -20,7 +20,6 @@ import (
 
 )
 
-
 // OpenAI APIエンドポイント
 const openaiAPIURL = "https://api.openai.com/v1/chat/completions"
 
@@ -278,12 +277,11 @@ func Generate4ChoiceWorkbookForQAndA(answers []string, pattern string) ([]dtos.R
 	return results, nil
 }
 
-
 // SaveQuestionToDB: 生成された問題を保存する（重複チェック付き）
 func SaveQuestionToDB(textbookID string, item dtos.ResultItem, answer string) (string, error) {
 	var question models.Question
-	
-	// 1. 既存チェック
+
+	// "textbook_id" と "answer" が一致するものを探す
 	err := database.DB.Where("textbook_id = ? AND answer = ?", textbookID, answer).First(&question).Error
 
 	if err != nil {
@@ -357,7 +355,7 @@ func GenerateAndAddStatement(questionID string) (*models.QuestionStatement, erro
 
 	// 3. 教科書のタイプをパターンとして使用
 	// 例: textbook.Type が "4択問題形式" なら、それがそのままAIへの指示になる
-	pattern :=string (parentQuestion.Textbook.Type)
+	pattern := string(parentQuestion.Textbook.Type)
 
 	// 4. AIに生成を依頼
 	// existingTexts を渡すことで、AIは「これらと被らない、違う方向性の問題」を作ろうとします
@@ -403,18 +401,21 @@ func SuggestNewWordsViaAI(currentWords []string) ([]string, error) {
 	wordsStr := strings.Join(currentWords, ", ")
 
 	prompt := fmt.Sprintf(`
-	あなたは学習のカリキュラム作成者です。
-	ある学生が以下の単語を「既に学習済み」です。
-	学習済み単語: [%s]
+You are an IT learning curriculum creator.
+A student has already learned the following terms:
+Learned terms: [%s]
 
-	この学生が次にステップアップするために覚えるべき、関連性の高い「まだ学習していない新しい単語」を3つ提案してください。
+Please propose three new terms that the student has *not learned yet* and that are highly related, helping them take the next step in their learning.
 
-	【絶対的な禁止事項】
-	・上記の「学習済み単語」に含まれる単語は、**絶対に出力しないでください**。
-	・同じ単語を繰り返さないでください。
+[ABSOLUTE RESTRICTIONS]
+- Do NOT output any term that appears in the list of "Learned terms".
+- Do NOT repeat the same term.
 
-	【出力形式】
-	「単語1,単語2,単語3」のようにカンマ区切りで単語のみを出力すること。解説不要。
+[OUTPUT FORMAT]
+Output only the three terms separated by commas, like: "term1, term2, term3". No explanations.
+
+[ADDITIONAL REQUIREMENT]
+Provide your output in Japanese.
 	`, wordsStr)
 
 	apiResp, err := callOpenAIAPI(prompt)
@@ -428,7 +429,7 @@ func SuggestNewWordsViaAI(currentWords []string) ([]string, error) {
 
 	// 重複フィルター処理
 	var resultList []string
-	
+
 	// 1. 既存単語をマップに登録（検索を速くするため）
 	existingMap := make(map[string]bool)
 	for _, w := range currentWords {
@@ -485,7 +486,7 @@ func GenerateAndSaveBatch(textbookID string, textbookType string, answers []stri
 			fmt.Println("Save Error:", err)
 			continue
 		}
-		
+
 		item.ID = id
 		finalQuestions = append(finalQuestions, item)
 	}
