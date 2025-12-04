@@ -9,10 +9,15 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"errors"
 
 	"hacku_2025_meijo/internal/database"
 	"hacku_2025_meijo/internal/dtos" // DTOsパッケージをインポート
 	"hacku_2025_meijo/internal/models"
+
+	"github.com/google/uuid" // UUID生成用
+	"gorm.io/gorm"
+
 )
 
 // OpenAI APIエンドポイント
@@ -273,29 +278,44 @@ func Generate4ChoiceWorkbookForQAndA(answers []string, pattern string) ([]dtos.R
 }
 
 // SaveQuestionToDB: 生成された問題を保存する（重複チェック付き）
-func SaveQuestionToDB(textbookID uint, item dtos.ResultItem, answer string) (uint, error) {
-
-	// 1. まず、同じ教科書の中に「同じ答え(Answer)」の問題が既にないか探す
+func SaveQuestionToDB(textbookID string, item dtos.ResultItem, answer string) (string, error) {
 	var question models.Question
 
 	// "textbook_id" と "answer" が一致するものを探す
-	result := database.DB.Where("textbook_id = ? AND answer = ?", textbookID, answer).First(&question)
+	err := database.DB.Where("textbook_id = ? AND answer = ?", textbookID, answer).First(&question).Error
 
-	if result.Error != nil {
-		// 見つからなかった場合（新規作成）
-		question = models.Question{
-			TextbookID: textbookID,
-			Answer:     answer,
-		}
-		// まず親を作る
-		if err := database.DB.Create(&question).Error; err != nil {
-			return 0, err
+	if err != nil {
+		// データが見つからない場合 (ErrRecordNotFound) は新規作成
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			newQuestion := models.Question{
+				ID:         uuid.New().String(), // ★修正: ここで確実にUUIDを生成して入れる！
+				TextbookID: textbookID,
+				Answer:     answer,
+			}
+			if createErr := database.DB.Create(&newQuestion).Error; createErr != nil {
+				return "", createErr
+			}
+			// 作成したデータを question 変数に入れる
+			question = newQuestion
+		} else {
+			// それ以外のDBエラー
+			return "", err
 		}
 	}
 
-	// 2. 子データ（QuestionStatement）を追加する
-	// 親のID (question.ID) を紐付ける
+	// 2. 重複チェック（同じ問題文が既にないか）
+	var count int64
+	database.DB.Model(&models.QuestionStatement{}).
+		Where("question_id = ? AND statement = ?", question.ID, item.Question).
+		Count(&count)
+
+	if count > 0 {
+		return question.ID, nil
+	}
+
+	// 3. 子データ（QuestionStatement）を追加する
 	newStatement := models.QuestionStatement{
+		ID:         uuid.New().String(), // ★修正: ここも確実にUUIDを入れる！
 		QuestionID: question.ID,
 		Statement:  item.Question,
 		Explain:    item.Explanation,
@@ -303,7 +323,7 @@ func SaveQuestionToDB(textbookID uint, item dtos.ResultItem, answer string) (uin
 	}
 
 	if err := database.DB.Create(&newStatement).Error; err != nil {
-		return 0, err
+		return "", err
 	}
 
 	return question.ID, nil
@@ -318,12 +338,12 @@ func DeleteQuestionByID(id string) error {
 }
 
 // 修正版: 教科書のタイプ（4択など）に合わせて、新しい切り口の問題を追加する
-func GenerateAndAddStatement(questionID uint) (*models.QuestionStatement, error) {
+func GenerateAndAddStatement(questionID string) (*models.QuestionStatement, error) {
 	// 1. 親問題(Question)を取得（Textbookの情報も一緒に！）
 	var parentQuestion models.Question
 
 	// Preload("Textbook") を追加して、教科書のタイプ（4択など）を知れるようにする
-	if err := database.DB.Preload("Textbook").Preload("QuestionStatements").First(&parentQuestion, questionID).Error; err != nil {
+	if err := database.DB.Preload("Textbook").Preload("QuestionStatements").First(&parentQuestion, "id = ?", questionID).Error; err != nil {
 		return nil, err
 	}
 
@@ -360,7 +380,7 @@ func GenerateAndAddStatement(questionID uint) (*models.QuestionStatement, error)
 }
 
 // CreateFolder: 新しいフォルダを作成する
-func CreateFolder(userID uint, name string) (*models.Folder, error) {
+func CreateFolder(userID string, name string) (*models.Folder, error) {
 	newFolder := models.Folder{
 		UserID:   userID,
 		Name:     name,
@@ -435,7 +455,7 @@ Provide your output in Japanese.
 }
 
 // GenerateAndSaveBatch: 単語リストから問題を一括生成し、指定の教科書に保存する（共通機能）
-func GenerateAndSaveBatch(textbookID uint, textbookType string, answers []string) ([]dtos.ResultItem, error) {
+func GenerateAndSaveBatch(textbookID string, textbookType string, answers []string) ([]dtos.ResultItem, error) {
 	var resultItems []dtos.ResultItem
 	var err error
 
@@ -446,7 +466,6 @@ func GenerateAndSaveBatch(textbookID uint, textbookType string, answers []string
 	case models.TypeFillIn, models.TypeInput:
 		resultItems, err = GenerateWorkbookForQAndA(answers, textbookType)
 	default:
-		// 未知のタイプなら記述式でトライ
 		resultItems, err = GenerateWorkbookForQAndA(answers, textbookType)
 	}
 
@@ -464,7 +483,6 @@ func GenerateAndSaveBatch(textbookID uint, textbookType string, answers []string
 
 		id, err := SaveQuestionToDB(textbookID, item, currentAnswer)
 		if err != nil {
-			// エラーログを出して続行
 			fmt.Println("Save Error:", err)
 			continue
 		}

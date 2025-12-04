@@ -48,8 +48,13 @@ func AuthMiddleware() gin.HandlerFunc {
 		claims, ok := token.Claims.(jwt.MapClaims)
 
 		if ok && token.Valid {
-			if floatID, ok := claims["user_id"].(float64); ok {
-				c.Set("userID", uint(floatID))
+			if UserIDStr, ok := claims["user_id"].(string); ok {
+				c.Set("userID", UserIDStr)
+			}else {
+				// stringで取れなかった場合の保険 (古いトークン対策など)
+				// floatで来る可能性も考慮するならここ分岐ですが、
+				// DBリセット後はstring確定なのでこれでOK
+				fmt.Println("Middleware Error: user_id is not a string")
 			}
 		}
 

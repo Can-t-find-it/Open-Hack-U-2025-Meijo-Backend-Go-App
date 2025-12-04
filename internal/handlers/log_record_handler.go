@@ -21,14 +21,14 @@ func NewStudyLogHandler() *StudyLogHandler {
 }
 
 func (h *StudyLogHandler) CreateStudyLogHandler(c *gin.Context) {
-	userID := c.GetUint("userID")
-	if userID == 0 {
+	userID := c.GetString("userID")
+	if userID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "ログインしてください"})
 		return
 	}
 
 	textbookIDStr := c.Param("id")
-	textbookID, err := strconv.Atoi(textbookIDStr)
+	_, err := strconv.Atoi(textbookIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "教科書IDが無効です(数字で指定してください)"})
 		return
@@ -43,7 +43,7 @@ func (h *StudyLogHandler) CreateStudyLogHandler(c *gin.Context) {
 		return
 	}
 
-	err = h.service.RecordStudyLog(userID, uint(textbookID), input.Score)
+	err = h.service.RecordStudyLog(userID, textbookIDStr, input.Score)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "学習ログの記録に失敗しました: " + err.Error()})

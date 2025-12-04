@@ -19,7 +19,7 @@ func NewFriendStudyLogHandler() *FriendStudyLogHandler {
 
 func (h *FriendStudyLogHandler) GetFriendLog(c *gin.Context) {
 
-	userID := c.GetUint("userID")
+	userID := c.GetString("userID")
 
 	response, err := h.service.GetFriendStudyLog(userID)
 

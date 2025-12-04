@@ -15,7 +15,7 @@ func CheckPenaltyAndNotify() error {
 
 	threeDaysAgo := time.Now().Add(-72 * time.Hour)
 
-	var userIDs []uint
+	var userIDs []string
 
 	// 勉強していないユーザーを取得
 	err := database.DB.
@@ -43,7 +43,7 @@ func CheckPenaltyAndNotify() error {
 
 
 // フレンドを取得してランダムに通知
-func notifyFriends(targetUserID uint) {
+func notifyFriends(targetUserID string) {
 	var friends []models.Friend
 
 	// 通知ONのフレンドを取得
@@ -51,7 +51,7 @@ func notifyFriends(targetUserID uint) {
 		Find(&friends)
 
 	if len(friends) == 0 {
-		fmt.Printf("ユーザー %d に通知対象フレンドなし\n", targetUserID)
+		fmt.Printf("ユーザー %s に通知対象フレンドなし\n", targetUserID)
 		return
 	}
 
@@ -77,12 +77,12 @@ func pickRandomFriends(friends []models.Friend, n int) []models.Friend {
 }
 
 // FCM 通知
-func sendPenaltyPush(toUserID uint, saboUserID uint) {
+func sendPenaltyPush(toUserID string, saboUserID string) {
 
 	message := fmt.Sprintf(
-		"あなたの友達（ID: %d）が最近学習していません！励ましてあげてください！",
+		"あなたの友達（ID: %s）が最近学習していません！励ましてあげてください！",
 		saboUserID,
 	)
 
-	fmt.Printf("[通知] ToUser=%d : %s\n", toUserID, message)
+	fmt.Printf("[通知] ToUser=%s : %s\n", toUserID, message)
 }

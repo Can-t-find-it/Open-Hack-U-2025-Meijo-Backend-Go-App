@@ -8,7 +8,7 @@ import (
 
 type ChangeFriendsService struct{}
 
-func (s *ChangeFriendsService) AddFriends(userID uint, input dtos.AddFriends) (*dtos.ResponseAddFriends, error) {
+func (s *ChangeFriendsService) AddFriends(userID string, input dtos.AddFriends) (*dtos.ResponseAddFriends, error) {
 	// 1. すでに登録済みの友達IDを取得する
 	var existingFriends []models.Friend
 	// "user_id = ?" で自分の友達データを検索し、"friend_user_id" カラムだけを取得する
@@ -18,7 +18,7 @@ func (s *ChangeFriendsService) AddFriends(userID uint, input dtos.AddFriends) (*
 
 	// 検索を高速にするために、取得したIDをマップ（辞書）に変換する
 	// map[友達ID]bool という形にする
-	existingMap := make(map[uint]bool)
+	existingMap := make(map[string]bool)
 	for _, f := range existingFriends {
 		existingMap[f.FriendUserID] = true
 	}
@@ -29,7 +29,7 @@ func (s *ChangeFriendsService) AddFriends(userID uint, input dtos.AddFriends) (*
 		return nil, err
 	}
 
-	userNameMap := make(map[uint]string)
+	userNameMap := make(map[string]string)
 	for _, i := range friendsName {
 		userNameMap[i.ID] = i.Name
 	}
@@ -38,7 +38,7 @@ func (s *ChangeFriendsService) AddFriends(userID uint, input dtos.AddFriends) (*
 	var newFriends []models.Friend
 
 	for _, friendIDInt := range input.Friends {
-		targetID := uint(friendIDInt)
+		targetID := string(friendIDInt)
 
 		// 自分自身ならスキップ
 		if userID == targetID {
@@ -70,7 +70,7 @@ func (s *ChangeFriendsService) AddFriends(userID uint, input dtos.AddFriends) (*
 
 	for _, f := range newFriends {
 		friend = append(friend, dtos.SoloAddFriend{
-			Friend: int(f.FriendUserID),
+			Friend: f.FriendUserID,
 			Name:   f.Name,
 		})
 
@@ -82,7 +82,7 @@ func (s *ChangeFriendsService) AddFriends(userID uint, input dtos.AddFriends) (*
 }
 
 // DeleteFriendsBatch : 指定された複数の友達を一括削除する
-func (s *ChangeFriendsService) DeleteFriendsBatch(userID uint, targetFriendIDs []int) error {
+func (s *ChangeFriendsService) DeleteFriendsBatch(userID string, targetFriendIDs []string) error {
 	if len(targetFriendIDs) == 0 {
 		return nil
 	}
@@ -95,7 +95,7 @@ func (s *ChangeFriendsService) DeleteFriendsBatch(userID uint, targetFriendIDs [
 	return nil
 }
 
-func (s *ChangeFriendsService) GetFriends(userID uint) (*dtos.GetFriends, error) {
+func (s *ChangeFriendsService) GetFriends(userID string) (*dtos.GetFriends, error) {
 	// 1. すでに登録済みの友達IDを取得する
 	var existingFriends []models.Friend
 	// "user_id = ?" で自分の友達データを検索し、"friend_user_id" カラムだけを取得する
@@ -106,7 +106,7 @@ func (s *ChangeFriendsService) GetFriends(userID uint) (*dtos.GetFriends, error)
 	var friend []dtos.SoloGetFriend
 	for _, f := range existingFriends {
 		friend = append(friend, dtos.SoloGetFriend{
-			FriendsID: int(f.FriendUserID),
+			FriendsID: f.FriendUserID,
 			Name:      f.Name,
 		})
 	}

@@ -7,8 +7,8 @@ import "time"
 // }
 
 type FriendStudyLog struct {
-	ID            uint      `json:"logId"`
-	FriendID      uint      `json:"friendId"`
+	ID            string      `json:"logId"`
+	FriendID      string      `json:"friendId"`
 	FriendName    string    `json:"friendName"` //新規追加
 	AnsweredAt    time.Time `json:"dateTime"`
 	TextbookName  string    `json:"textbookName"`  //新規追加

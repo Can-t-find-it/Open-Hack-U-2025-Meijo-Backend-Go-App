@@ -5,10 +5,10 @@ import (
 )
 
 type StudyLog struct {
-	ID            uint `gorm:"primaryKey"`
-	UserID        uint
-	TextbookID    uint
-	QuestionID    uint
+	ID            string `gorm:"primaryKey"`
+	UserID        string
+	TextbookID    string
+	QuestionID    string
 	Answered      bool
 	AnsweredAt    time.Time
 	Score         float64

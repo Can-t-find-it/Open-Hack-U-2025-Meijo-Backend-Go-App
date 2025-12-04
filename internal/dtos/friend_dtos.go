@@ -1,10 +1,10 @@
 package dtos
 
 type InputFriendGetAll struct {
-	UserID int `json:"user_id"`
+	UserID string `json:"user_id"`
 }
 
 type ResponseFriendGetAll struct {
-	User int `json:"user"`
-	FriendsUserID []int `json:"friends_id"`
+	User string `json:"user"`
+	FriendsUserID []string `json:"friends_id"`
 }

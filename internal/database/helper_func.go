@@ -4,36 +4,11 @@ import (
 	"hacku_2025_meijo/internal/models"
 )
 
-// GetUserNameMap : ユーザーIDのリストを受け取り、{ID: Name} のマップを返す関数
-func GetUserNameMap(userIDs []uint) (map[uint]string, error) {
+
+
+func GetTextbookNameMap(questionIDs []string) (map[string]string, error) {
 	// 結果用のマップを初期化
-	nameMap := make(map[uint]string)
-
-	// IDリストが空なら、空のマップを返して終了 (DBアクセスしない)
-	if len(userIDs) == 0 {
-		return nameMap, nil
-	}
-
-	// ユーザー情報を取得するためのスライス
-	var users []models.User
-
-	// DBから検索
-	// Select("id", "name") で、必要なカラムだけ取ってくる（高速化）
-	if err := DB.Select("id", "name").Where("id IN ?", userIDs).Find(&users).Error; err != nil {
-		return nil, err
-	}
-
-	// 取得したリストをマップに変換
-	for _, u := range users {
-		nameMap[u.ID] = u.Name
-	}
-
-	return nameMap, nil
-}
-
-func GetTextbookNameMap(questionIDs []uint) (map[uint]string, error) {
-	// 結果用のマップを初期化
-	nameMap := make(map[uint]string)
+	nameMap := make(map[string]string)
 
 	// IDリストが空なら、空のマップを返して終了 (無駄なDBアクセスを防ぐ)
 	if len(questionIDs) == 0 {
@@ -62,9 +37,9 @@ func GetTextbookNameMap(questionIDs []uint) (map[uint]string, error) {
 }
 
 // GetTextbookIDToNameMap : 教科書IDのリストを受け取り、{TextbookID: TextbookName} のマップを返す関数
-func GetTextbookIDToNameMap(textbookIDs []uint) (map[uint]string, error) {
+func GetTextbookIDToNameMap(textbookIDs []string) (map[string]string, error) {
 	// 結果用のマップを初期化
-	nameMap := make(map[uint]string)
+	nameMap := make(map[string]string)
 
 	// IDリストが空なら、空のマップを返して終了 (DBアクセスしない)
 	if len(textbookIDs) == 0 {

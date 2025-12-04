@@ -24,8 +24,8 @@ func NewAddTextbookHandler() *AddTextbookHandler {
 // ImportTextbook : フレンドの教科書をコピーして取り込む
 func (h *AddTextbookHandler) ImportTextbook(c *gin.Context) {
 	// 1. 【本人確認】 自分のIDを取得
-	userID := c.GetUint("userID")
-	if userID == 0 {
+	userID := c.GetString("userID")
+	if userID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "ログインしてください"})
 		return
 	}

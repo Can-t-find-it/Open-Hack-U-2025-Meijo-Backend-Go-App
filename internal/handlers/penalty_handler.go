@@ -62,7 +62,7 @@ func (h *PenaltyHandler) CheckPenalty(c *gin.Context) {
         return
     }
 
-    friendIDs := []uint{}
+    friendIDs := []string{}
     for _, f := range friends {
         friendIDs = append(friendIDs, f.FriendUserID)
     }

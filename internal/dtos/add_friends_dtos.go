@@ -1,11 +1,11 @@
 package dtos
 
 type AddFriends struct {
-	Friends []int `json:"add_friends"`
+	Friends []string `json:"friends_id"`
 }
 
 type SoloAddFriend struct {
-	Friend int    `json:"friend"`
+	Friend string `json:"friend_id"`
 	Name   string `json:"name"`
 }
 

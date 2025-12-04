@@ -8,7 +8,7 @@ import (
 
 type StudyLogService struct{}
 
-func (s *StudyLogService) RecordStudyLog(userId uint, textbookId uint, score float64) error {
+func (s *StudyLogService) RecordStudyLog(userId string, textbookId string, score float64) error {
 	var textbook models.Textbook
 
 	if err := database.DB.Where("id = ?", textbookId).First(&textbook).Error; err != nil {
@@ -25,7 +25,7 @@ func (s *StudyLogService) RecordStudyLog(userId uint, textbookId uint, score flo
 
 	accuracy := tmp / float64(len(scores))
 
-	var textbookIdSlice []uint
+	var textbookIdSlice []string
 
 	textbookIdSlice = append(textbookIdSlice, textbookId)
 

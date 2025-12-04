@@ -19,8 +19,8 @@ func NewGetTextBooksHandler() *GetTextBooksHandler {
 }
 
 func (h *GetTextBooksHandler) GetTextbooks(c *gin.Context) {
-	userID := c.GetUint("userID")
-	if userID == 0 {
+	userID := c.GetString("userID")
+	if userID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "ログインしてください"})
 		return
 	}
