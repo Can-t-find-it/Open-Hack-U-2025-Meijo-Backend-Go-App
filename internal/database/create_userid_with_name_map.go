@@ -5,9 +5,9 @@ import (
 )
 
 // GetUserNameMap : ユーザーIDのリストを受け取り、{ID: Name} のマップを返す関数
-func GetUserNameMap(userIDs []uint) (map[uint]string, error) {
+func GetUserNameMap(userIDs []string) (map[string]string, error) {
 	// 結果用のマップを初期化
-	nameMap := make(map[uint]string)
+	nameMap := make(map[string]string)
 
 	// IDリストが空なら、空のマップを返して終了 (DBアクセスしない)
 	if len(userIDs) == 0 {

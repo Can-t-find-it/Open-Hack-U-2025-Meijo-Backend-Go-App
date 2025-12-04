@@ -1,23 +1,34 @@
 package models
 
 import (
-	"time"          // 時刻型を使う場合
+	"time"
+
+	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type User struct {
-    ID            uint           `gorm:"primaryKey"`
-    Name          string
-    Email         string         `gorm:"unique"`
-    PasswordHash  string
-    IconURL       string
-    PenaltyStatus int
-    LastActiveAt  time.Time
-    TeamID        *uint
-    Team          Team           `gorm:"foreignKey:TeamID"`
+	// IDを string に変更し、サイズを36文字(UUIDの長さ)に指定
+	ID           string    `gorm:"primaryKey;type:varchar(36)" json:"id"`
+	Name         string    `json:"name"`
+	Email        string    `gorm:"unique" json:"email"`
+	PasswordHash string    `json:"-"` // JSONには出力しない
+	IconURL      string    `json:"icon_url"`
+	
+	// 外部キーの型も string に合わせる
+	TeamID       *string   `json:"team_id"` 
+	Team         Team      `gorm:"foreignKey:TeamID"`
 
-    // ↓【追加】ユーザーは複数の学習フォルダを持つ
-	Folders       []Folder  `gorm:"foreignKey:UserID"`
-    
-    CreatedAt     time.Time
-    UpdatedAt     time.Time
+	Folders      []Folder  `gorm:"foreignKey:UserID"`
+
+	CreatedAt    time.Time `json:"createdAt"`
+	UpdatedAt    time.Time `json:"updatedAt"`
+}
+
+// BeforeCreate: 保存する前に自動でUUIDを生成する
+func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
+	if u.ID == "" {
+		u.ID = uuid.New().String()
+	}
+	return
 }

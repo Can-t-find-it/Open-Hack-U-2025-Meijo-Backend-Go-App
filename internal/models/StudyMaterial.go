@@ -5,8 +5,8 @@ import (
 )
 
 type StudyMaterial struct {
-    ID           uint      `gorm:"primaryKey"`
-    UserID       uint
+    ID           string      `gorm:"primaryKey"`
+    UserID       string
     FilePath     string
     ExtractedText string
     Summary      string

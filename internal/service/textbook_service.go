@@ -12,7 +12,7 @@ import (
 // ==========================================
 
 // GetUserTextbooks: ユーザーのフォルダと、その中の問題集一覧を全部取得
-func GetUserTextbooks(userID uint) ([]dtos.FolderResponse, error) {
+func GetUserTextbooks(userID string) ([]dtos.FolderResponse, error) {
 	var folders []models.Folder
 
 	// 1. DBから全データを取得 (ここは変わらず)
@@ -26,11 +26,14 @@ func GetUserTextbooks(userID uint) ([]dtos.FolderResponse, error) {
 	}
 
 	// 2. 必要なデータだけを「詰め替え」作業
-	var response []dtos.FolderResponse
+	response := []dtos.FolderResponse{}
 
 	for _, f := range folders {
 		// 教科書リストの詰め替え
 		var currentTextbooks []dtos.TextbookResponse
+		if f.Textbooks == nil {
+			currentTextbooks = []dtos.TextbookResponse{}
+		}
 		for _, t := range f.Textbooks {
 			currentTextbooks = append(currentTextbooks, dtos.TextbookResponse{
 				ID:   t.ID,
@@ -96,7 +99,7 @@ func GetTextbookDetail(textbookID string) (*dtos.TextbookDetailResponse, error) 
 
 // CreateTextbook: 新しい問題集を作成
 // 引数の typeStr は、ユーザーからの入力なので string のままでOK
-func CreateTextbook(name string, typeStr string, folderID uint) error {
+func CreateTextbook(name string, typeStr string, folderID string) error {
 	
 	// 1. 入力された文字列を、専用の型にキャスト（変換）してみる
 	inputType := models.TextbookType(typeStr)
@@ -126,29 +129,10 @@ func CreateTextbook(name string, typeStr string, folderID uint) error {
 // ==========================================
 
 // AddQuestionToTextbook: 生成された問題データをDB構造に変換して保存
-func AddQuestionToTextbook(textbookID uint, item dtos.ResultItem, answer string) error {
-
-	// 1. Question（親：正解データ）を作成
-	question := models.Question{
-		TextbookID: textbookID,
-		Answer:     answer, // 正解の文字列（例: "リンゴ"）
-		// QuestionStatements（子：出題文・選択肢）をネストして作成
-		QuestionStatements: []models.QuestionStatement{
-			{
-				Statement: item.Question,    // 問題文
-				Explain:   item.Explanation, // 解説
-				Choices:   item.Options,     // 選択肢配列 (JSONとして保存される)
-			},
-		},
-	}
-
-	// 2. DBに保存
-	// 親のQuestionを保存すれば、子のStatementも自動で保存されます
-	if err := database.DB.Create(&question).Error; err != nil {
-		return err
-	}
-
-	return nil
+func AddQuestionToTextbook(textbookID string, item dtos.ResultItem, answer string) error {
+	// ★修正: 自分で保存処理を書かず、重複チェック機能付きの SaveQuestionToDB を呼ぶだけにする
+	_, err := SaveQuestionToDB(textbookID, item, answer)
+	return err
 }
 
 // ----------------------------------------------------
@@ -165,7 +149,7 @@ func DeleteQuestion(questionID string) error {
 
 // AddQuestionStatement: 既存の問題（親）に、新しい聞き方（子）を追加する
 // 例: 「1+1は？」という問題(ID:10)に対して、「1に1を足すと？」という別パターンを追加
-func AddQuestionStatement(questionID uint, statement string, explain string, choices []string) error {
+func AddQuestionStatement(questionID string, statement string, explain string, choices []string) error {
 	newStatement := models.QuestionStatement{
 		QuestionID: questionID,
 		Statement:  statement,

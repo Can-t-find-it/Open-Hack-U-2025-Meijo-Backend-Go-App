@@ -5,8 +5,8 @@ import (
 )
 
 type IconHistory struct {
-    ID        uint      `gorm:"primaryKey"`
-    UserID    uint
+    ID        string      `gorm:"primaryKey"`
+    UserID    string
     ImageURL  string
     CreatedAt time.Time
 }

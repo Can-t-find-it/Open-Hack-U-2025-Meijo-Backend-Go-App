@@ -8,7 +8,7 @@ import (
 
 type GetTextbooksService struct{}
 
-func (s *GetTextbooksService) GetTextbooks(userID uint) (*dtos.FinalResponseTextbooks, error) {
+func (s *GetTextbooksService) GetTextbooks(userID string) (*dtos.FinalResponseTextbooks, error) {
 	user_id := userID
 	var friends []models.Friend
 	var textbooks []models.Textbook
@@ -21,7 +21,7 @@ func (s *GetTextbooksService) GetTextbooks(userID uint) (*dtos.FinalResponseText
 		return &dtos.FinalResponseTextbooks{}, nil
 	}
 
-	var friendsID []uint
+	var friendsID []string
 	for _, f := range friends {
 		friendsID = append(friendsID, f.FriendUserID)
 	}
@@ -30,7 +30,7 @@ func (s *GetTextbooksService) GetTextbooks(userID uint) (*dtos.FinalResponseText
 		return nil, err
 	}
 
-	textMap := make(map[uint][]dtos.SoloTextbook)
+	textMap := make(map[string][]dtos.SoloTextbook)
 	var responseTextbooks []dtos.ResponseTextbooks
 
 	for _, t := range textbooks {

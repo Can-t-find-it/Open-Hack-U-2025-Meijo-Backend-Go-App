@@ -1,5 +1,5 @@
 package dtos
 
 type DeleteFriends struct {
-	DeleteFriends []int `json:"delete_friends"`
+	DeleteFriends []string `json:"delete_friends"`
 }

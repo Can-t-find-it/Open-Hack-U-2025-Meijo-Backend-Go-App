@@ -49,7 +49,7 @@ func UploadPDFHandler(c *gin.Context) {
 	// ---------------------------------------------------
 	
 	// ServiceのCreateTextbookを使ってDBに保存
-	err = service.CreateTextbook(name, typeStr, uint(folderID))
+	err = service.CreateTextbook(name, typeStr, folderIDStr)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Textbook creation failed: " + err.Error()})
 		return
@@ -103,7 +103,7 @@ func UploadPDFHandler(c *gin.Context) {
 	// ---------------------------------------------------
 	// 5. レスポンス 
 	// ---------------------------------------------------
-	textbookIDStr := strconv.Itoa(int(textbookID))
+	textbookIDStr := textbookID
 	resultDTO, err := service.GetTextbookDetail(textbookIDStr)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get textbook detail"})

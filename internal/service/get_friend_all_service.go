@@ -8,7 +8,7 @@ import (
 
 type GetFriendService struct{}
 
-func (s *GetFriendService) GetAllFriends(userID int) (*dtos.ResponseFriendGetAll, error) {
+func (s *GetFriendService) GetAllFriends(userID string) (*dtos.ResponseFriendGetAll, error) {
 	var friends []models.Friend
 
 	result := database.DB.Where("user_id = ?", userID).Find(&friends)
@@ -17,10 +17,10 @@ func (s *GetFriendService) GetAllFriends(userID int) (*dtos.ResponseFriendGetAll
 		return nil, result.Error
 	}
 
-	var friendsID []int
+	var friendsID []string
 
 	for _, f := range friends {
-		friendsID = append(friendsID, int(f.FriendUserID))
+		friendsID = append(friendsID, f.FriendUserID)
 	}
 	return &dtos.ResponseFriendGetAll{
 		User:          userID,
