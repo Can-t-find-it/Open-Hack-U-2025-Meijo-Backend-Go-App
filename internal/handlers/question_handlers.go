@@ -4,9 +4,10 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/gin-gonic/gin"
 	"hacku_2025_meijo/internal/dtos"
 	"hacku_2025_meijo/internal/service"
+
+	"github.com/gin-gonic/gin"
 )
 
 // ==========================================
@@ -123,7 +124,6 @@ func GenerateProblemHandler(c *gin.Context) {
 		return
 	}
 
-	
 	for i, item := range resultItems {
 		// 正解の単語を特定（単体生成なら body.Answer、複数なら配列から）
 		currentAnswer := ""
@@ -223,11 +223,11 @@ func GenerateWorkbookForQAndAHandler(c *gin.Context) {
 // GET /api/textbooks - 教科書一覧取得
 func GetTextbooksHandler(c *gin.Context) {
 	userIDValue, exists := c.Get("userID")
-    if !exists {
-        c.JSON(http.StatusUnauthorized, gin.H{"error": "ユーザーIDがありません"})
-        return
-    }
-    userID := userIDValue.(uint)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "ユーザーIDがありません"})
+		return
+	}
+	userID := userIDValue.(uint)
 
 	result, err := service.GetUserTextbooks(userID)
 	if err != nil {
@@ -378,7 +378,7 @@ func SuggestWordHandler(c *gin.Context) {
 
 	if textbookID != "" {
 		// ★パターンA: 教科書IDがある場合 → その中身を分析してAIが提案
-		
+
 		// 1. 教科書の中の単語を取得
 		currentWords, err := service.GetWordsInTextbook(textbookID)
 		if err != nil {
@@ -412,6 +412,7 @@ func SuggestWordHandler(c *gin.Context) {
 		"word": suggestedWord,
 	})
 }
+
 // POST /api/generate_statement
 func GenerateAndAddStatementHandler(c *gin.Context) {
 	var req struct {
@@ -439,62 +440,63 @@ func GenerateAndAddStatementHandler(c *gin.Context) {
 
 // POST /api/folders - フォルダ作成
 func CreateFolderHandler(c *gin.Context) {
-    // Middlewareでセットされた userID を取得
-    userIDValue, exists := c.Get("userID")
-    if !exists {
-        c.JSON(http.StatusUnauthorized, gin.H{"error": "ユーザーIDがありません"})
-        return
-    }
-    userID := userIDValue.(uint)
+	// Middlewareでセットされた userID を取得
+	userIDValue, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "ユーザーIDがありません"})
+		return
+	}
+	userID := userIDValue.(uint)
 
-    var req struct {
-        Name string `json:"name"`
-    }
-    if err := c.ShouldBindJSON(&req); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
-        return
-    }
+	var req struct {
+		// Name string `json:"name"`
+		Name string `json:"folderName"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
+		return
+	}
 
-    folder, err := service.CreateFolder(userID, req.Name)
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-        return
-    }
+	_, err := service.CreateFolder(userID, req.Name)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
-    c.JSON(http.StatusCreated, gin.H{
-        "folder": gin.H{
-            "id":     folder.ID,
-            "name":   folder.Name,
-            "userId": folder.UserID,
-        },
-    })
+	// c.JSON(http.StatusCreated, gin.H{
+	// 	"folder": gin.H{
+	// 		"id":     folder.ID,
+	// 		"name":   folder.Name,
+	// 		"userId": folder.UserID,
+	// 	},
+	// })
+	c.Status(http.StatusNoContent)	//そーしろーの要望に合わせましたby.上野
 }
-
 
 // DELETE /api/folders/:id - フォルダ削除
 func DeleteFolderHandler(c *gin.Context) {
-    // JSON の受け皿
-    var req struct {
-        FolderIDs []string `json:"folderIds"`
-    }
+	// JSON の受け皿
+	var req struct {
+		FolderIDs []string `json:"folderIds"`
+	}
 
-    if err := c.ShouldBindJSON(&req); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
-        return
-    }
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
+		return
+	}
 
-    if len(req.FolderIDs) == 0 {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "folderIds is required"})
-        return
-    }
+	if len(req.FolderIDs) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "folderIds is required"})
+		return
+	}
 
-    err := service.DeleteFolders(req.FolderIDs)
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-        return
-    }
+	err := service.DeleteFolders(req.FolderIDs)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
-    c.JSON(http.StatusOK, gin.H{
-        "folderIds": req.FolderIDs,
-    })
+	c.JSON(http.StatusOK, gin.H{
+		"folderIds": req.FolderIDs,
+	})
 }

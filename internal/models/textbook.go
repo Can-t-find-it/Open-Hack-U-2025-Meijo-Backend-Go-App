@@ -9,7 +9,7 @@ import (
 type Folder struct {
 	ID       uint   `gorm:"primaryKey" json:"id"`
 	UserID   uint   `json:"userId"`
-	Name     string `json:"name"`
+	Name     string `json:"folderName"`
 	Progress int    `json:"progress"` // 進捗率
 
 	// Folderを削除したら中身のTextbookも消える設定
@@ -34,7 +34,8 @@ type Textbook struct {
 	ScoreHistory []float64 `gorm:"serializer:json" json:"score"`
 
 	// 解いた回数
-	PlayTimes int `json:"times"`
+	PlayTimes     int `json:"times"`
+	TodayPlayTime int `json:"todayProgress"`
 
 	// Textbookを削除したら中身のQuestionも消える設定
 	Questions []Question `gorm:"foreignKey:TextbookID;constraint:OnDelete:CASCADE" json:"questions"`

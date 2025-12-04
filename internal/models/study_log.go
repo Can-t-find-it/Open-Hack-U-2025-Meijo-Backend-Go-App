@@ -10,9 +10,7 @@ type StudyLog struct {
 	QuestionID    uint
 	Answered      bool
 	AnsweredAt    time.Time
-	Score         int
-	FriendName    string
+	Score         float64
 	TextbookName  string
-	Accuracy      float64
 	TodayProgress uint
 }

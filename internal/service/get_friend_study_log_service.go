@@ -14,12 +14,12 @@ func (s *GetFriendStudyLogService) GetFriendStudyLog(userId uint) (*dtos.AllFrie
 	var myFriends []models.Friend
 
 	var myFriendsID []uint
-	
+
 	if err := database.DB.Where("user_id = ?", userId).Find(&myFriends).Error; err != nil {
 		return nil, err
 	}
-	
-	for _ ,f := range myFriends {
+
+	for _, f := range myFriends {
 		myFriendsID = append(myFriendsID, f.FriendUserID)
 	}
 
@@ -29,14 +29,20 @@ func (s *GetFriendStudyLogService) GetFriendStudyLog(userId uint) (*dtos.AllFrie
 
 	var studyLogs []dtos.FriendStudyLog
 
+	id_name_map, err := database.GetUserNameMap(myFriendsID)
+
+	if err != nil {
+		return nil, err
+	}
+
 	for _, log := range allStudyLogs {
 		dto := dtos.FriendStudyLog{
-			ID: log.ID,
-			FriendID:   log.UserID,
-			FriendName: log.FriendName,
-			AnsweredAt: log.AnsweredAt,
-			TextbookName: log.TextbookName,
-			Accuracy: log.Accuracy,
+			ID:            log.ID,
+			FriendID:      log.UserID,
+			FriendName:    id_name_map[log.UserID],
+			AnsweredAt:    log.AnsweredAt,
+			TextbookName:  log.TextbookName,
+			Accuracy:      log.Score,
 			TodayProgress: log.TodayProgress,
 		}
 		studyLogs = append(studyLogs, dto)

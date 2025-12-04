@@ -124,15 +124,15 @@ func DeleteQuestionStatement(statementID string) error {
 // 今回は仮として「DBにある問題の正解」からランダムに1つ取得して返します
 func GetSuggestedWord() (string, error) {
 	var question models.Question
-	
+
 	// ORDER BY RANDOM() でランダムに1件取得 (PostgreSQLの場合)
 	// MySQLなら "RAND()" を使用
 	result := database.DB.Order("RANDOM()").First(&question)
-	
+
 	if result.Error != nil {
 		return "", result.Error
 	}
-	
+
 	return question.Answer, nil // 正解の単語を返す
 }
 
@@ -162,7 +162,7 @@ func DeleteFolder(folderID string) error {
 // GetWordsInTextbook: 教科書に含まれる全ての正解単語を取得する
 func GetWordsInTextbook(textbookID string) ([]string, error) {
 	var questions []models.Question
-	
+
 	// 指定された教科書のQuestionを全部取ってくる
 	result := database.DB.Where("textbook_id = ?", textbookID).Find(&questions)
 	if result.Error != nil {

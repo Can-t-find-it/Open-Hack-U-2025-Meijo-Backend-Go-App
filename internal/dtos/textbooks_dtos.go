@@ -19,3 +19,21 @@ type ResponseTextbooks struct {
 type FinalResponseTextbooks struct {
 	Friends []ResponseTextbooks `json:"friends"`
 }
+
+type QuestionStatements struct {
+	Id                uint     `json:"id"`
+	QuestionStatement string   `json:"questionStatement"`
+	Choice            []string `json:"choice"`
+	Explain           string   `json:"explain"`
+}
+
+type ResponseFriendTextbookInformation struct {
+	Id        uint                 `json:"id"`
+	Name      string               `json:"name"`
+	Type      string               `json:"type"`
+	Questions []QuestionStatements `json:"questions"`
+}
+
+type FinalResponseFriendTextbookInformation struct {
+	Textbook []ResponseFriendTextbookInformation `json:"textbook"`
+}
