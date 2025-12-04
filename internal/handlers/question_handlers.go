@@ -248,23 +248,14 @@ func CreateTextbookHandler(c *gin.Context) {
 	var req struct {
 		Name     string `json:"name"`
 		Type     string `json:"type"`
-		FolderID string `json:"folderId"`
+		FolderID uint   `json:"folderId"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	id64, err := strconv.ParseUint(req.FolderID, 10, 64)
-
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid FolderID format"})
-		return
-	}
-
-	folderID := uint(id64)
-
-	err = service.CreateTextbook(req.Name, req.Type, folderID)
+	err := service.CreateTextbook(req.Name, req.Type, req.FolderID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
