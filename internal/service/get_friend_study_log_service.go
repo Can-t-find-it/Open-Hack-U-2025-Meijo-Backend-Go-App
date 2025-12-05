@@ -19,6 +19,12 @@ func (s *GetFriendStudyLogService) GetFriendStudyLog(userId string) (*dtos.AllFr
 		return nil, err
 	}
 	
+	if len(myFriends) == 0 {
+		return &dtos.AllFriendsStudyLog{
+			Logs: []dtos.FriendStudyLog{}, // nullではなく [] になる
+		}, nil
+	}
+
 	for _ ,f := range myFriends {
 		myFriendsID = append(myFriendsID, f.FriendUserID)
 	}
@@ -27,7 +33,7 @@ func (s *GetFriendStudyLogService) GetFriendStudyLog(userId string) (*dtos.AllFr
 		return nil, err
 	}
 
-	var studyLogs []dtos.FriendStudyLog
+	studyLogs := []dtos.FriendStudyLog{}
 
 	for _, log := range allStudyLogs {
 		dto := dtos.FriendStudyLog{
