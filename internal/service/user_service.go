@@ -98,3 +98,42 @@ func calculateStreakDays(userID string) int {
 
 	return streak
 }
+
+func SearchAllUsers(currentUserID string, searchName string) ([]dtos.UserSearchResponse, error) {
+	
+	// 1. ログインユーザーのフレンドIDを事前に全て取得
+	var friends []models.Friend
+	
+	if err := database.DB.Where("user_id = ?", currentUserID).Find(&friends).Error; err != nil {
+		return nil, err
+	}
+    
+	// フレンドIDをマップに格納
+	friendMap := make(map[string]bool)
+	for _, f := range friends {
+		friendMap[f.FriendUserID] = true
+	}
+
+	// 2. ユーザーテーブルから、ログインユーザー自身を除外し、名前に部分一致するユーザーを検索
+	var matchedUsers []models.User
+	searchPattern :=  searchName 
+
+	result := database.DB.Where("id <> ? AND name LIKE ?", currentUserID, searchPattern).Find(&matchedUsers)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	// 3. DTOに変換し、isFriendフラグを設定
+	responses := make([]dtos.UserSearchResponse, 0, len(matchedUsers))
+	for _, u := range matchedUsers {
+		_, isFriend := friendMap[u.ID] // マップにユーザーIDが存在すれば true
+        
+		responses = append(responses, dtos.UserSearchResponse{
+			ID:       u.ID,
+			UserName: u.Name,
+			IsFriend: isFriend,
+		})
+	}
+
+	return responses, nil
+}

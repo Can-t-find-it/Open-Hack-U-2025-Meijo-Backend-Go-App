@@ -3,9 +3,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
-
 	"hacku_2025_meijo/internal/service"
-
 	"github.com/gin-gonic/gin"
 )
 
