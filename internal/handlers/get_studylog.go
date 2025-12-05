@@ -13,7 +13,7 @@ func GetStudyLogsHandler(c *gin.Context) {
 		return
 	}
 	
-	logs, err := service.GetUserStudyLogs(userID)
+	logs, err := service.GetLatestStudyLog(userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
