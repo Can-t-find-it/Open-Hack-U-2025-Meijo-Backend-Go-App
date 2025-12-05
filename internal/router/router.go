@@ -5,6 +5,7 @@ import (
 
 	"hacku_2025_meijo/internal/handlers"
 	"hacku_2025_meijo/internal/middleware"
+	"hacku_2025_meijo/internal/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -41,6 +42,8 @@ func SetupRouter() *gin.Engine {
 	friendStudyLogHandler := handlers.NewFriendStudyLogHandler()
 	// ★追加: 教科書取得ハンドラを初期化
 	friendTextbookHandler := handlers.NewGetTextBooksHandler()
+	friendService := service.NewFriendService()
+	friendHandler := handlers.NewFriendHandler(friendService)
 
 	deviceHandler := handlers.NewDeviceHandler()
 
@@ -87,6 +90,7 @@ func SetupRouter() *gin.Engine {
 			// === ユーザー情報取得 ===
 			protected.GET("/user/status", handlers.GetUserStatus)
 			protected.GET("/user/studylog", handlers.GetStudyLogsHandler)
+			protected.GET("/user/search", handlers.UserSearchHandler)
 
 			// === その他 ===
 			protected.GET("/textbook/:id/word", handlers.SuggestWordHandler)
@@ -94,6 +98,7 @@ func SetupRouter() *gin.Engine {
 			// === フレンド機能 ===
 			// フレンド一覧取得
 			protected.POST("/getfriends", friendGetAllHandler.GetAllFriends)
+			protected.GET("/friend/search", friendHandler.SearchFriendsHandler)
 
 			// フレンド追加・削除・取得
 			protected.POST("/friend/change/:id", friendChangeHandler.AddFriends)
