@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func GetUserStudyLogs(userID uint) ([]dtos.StudyLogResponse, error) {
+func GetUserStudyLogs(userID string) ([]dtos.StudyLogResponse, error) {
 	var logs []models.StudyLog
 	if err := database.DB.Where("user_id = ?", userID).Find(&logs).Error; err != nil {
 		return nil, err

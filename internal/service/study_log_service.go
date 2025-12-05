@@ -44,7 +44,7 @@ func (s *StudyLogService) RecordStudyLog(userId string, textbookId string, score
 	var todayProgress int = 1 
 
 	insertStudyLogs := models.StudyLog{
-		ID:              uuid.New().String(),
+		ID:            uuid.New().String(),
 		UserID:        userId,
 		TextbookID:    textbookId,
 		Answered:      true,
