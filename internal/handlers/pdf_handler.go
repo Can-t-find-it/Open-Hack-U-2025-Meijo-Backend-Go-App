@@ -115,7 +115,7 @@ func UploadPDFHandler(c *gin.Context) {
 		"textbook": struct {
 			ID        string                   `json:"id"`
 			Name      string                   `json:"name"`
-			Type      string                   `json:"type"`      // ★ここ！Nameの下、Questionsの上に配置
+			Type      string                   `json:"type"`      
 			Questions []dtos.QuestionResponse  `json:"questions"`
 			// Score     []float64                `json:"score,omitempty"` // 必要ならコメントアウト解除
 			// Times     int                      `json:"times,omitempty"` // 必要ならコメントアウト解除
