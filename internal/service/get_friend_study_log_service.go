@@ -42,6 +42,7 @@ func (s *GetFriendStudyLogService) GetFriendStudyLog(userId string) (*dtos.AllFr
 			FriendName: log.Name,
 			AnsweredAt: log.AnsweredAt,
 			TextbookName: log.TextbookName,
+			TextbookID: log.TextbookID,
 			Accuracy: log.Accuracy,
 			TodayProgress: log.TodayProgress,
 		}
