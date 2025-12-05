@@ -101,10 +101,11 @@ func GenerateWorkbookForQAndA(answers []string, pattern string) ([]dtos.ResultIt
 	4.**禁止事項**: 問題文の中に、ターゲット単語（正解）をそのまま使用してはいけません。答えがバレてしまいます。
 		悪い例（答えがリンゴの場合）: 「リンゴは赤い果物ですが、これは何？」
 		良い例（答えがリンゴの場合）: 「赤くて丸い、医者いらずとも言われる果物は何？」
+	5.**重複回避**: 「既存の問題文」と似た問題は作らないでください。
 
 
 	【作成パターンの定義】
-	- "入力": ターゲット単語に関する知識を問う一般的なクイズを作成してください。
+	- "入力": ターゲット単語に関する知識を問う一般的なクイズを作成してください。「（　」や「__」のような空欄は用いないでください。
 	- "穴埋め入力"文脈からターゲット単語を推測させる文を作り、ターゲット単語が入る部分を必ず「（　）」という空欄に置き換えてください。
 	【出力フォーマット】
 	以下の形式（区切り文字 "（）"）のみを出力してください。挨拶は不要です。
@@ -189,11 +190,11 @@ func generateQuestion4ChoicePrompt(answer string, pattern string, existingQuesti
 1. **禁止事項**: 問題文の中に、ターゲット単語（正解）をそのまま使用してはいけません。答えがバレてしまいます。
    - 悪い例（答えがリンゴの場合）: 「リンゴは赤い果物ですが、これは何？」
    - 良い例（答えがリンゴの場合）: 「赤くて丸い、医者いらずとも言われる果物は何？」
-2. **選択肢**: 必ず4つ作成し、そのうち1つだけを正解、残り3つを誤答にしてください。
+2. **選択肢**: 必ず4つ作成し、そのうち1つだけをターゲット単語（正解）にしてください。それ以外は誤答として適切なものを必ず用意してください
 3. **重複回避**: 「既存の問題文」と似た問題は作らないでください。
 
 【作成パターンの定義】
-- "4択問題形式": ターゲット単語に関する知識を問う一般的なクイズを作成してください。
+- "4択問題形式": ターゲット単語に関する知識を問う一般的なクイズを作成してください。「(　」や「___」のような空欄は.用しないでください。
 - "穴埋め4択": 文脈からターゲット単語を推測させる文を作り、ターゲット単語が入る部分を必ず「（　）」という空欄に置き換えてください。
 
 【出力フォーマット】
@@ -205,7 +206,7 @@ A: [選択肢1]
 B: [選択肢2]
 C: [選択肢3]
 D: [選択肢4]
-正解: [A/B/C/D のいずれか一文字]
+正解: [ターゲット単語]
 解説: [なぜその答えになるかの簡潔な説明]
 `, answer, pattern, existingQStr)
 }
@@ -355,7 +356,7 @@ func DeleteQuestionByID(id string) error {
 }
 
 // 修正版: 教科書のタイプ（4択など）に合わせて、新しい切り口の問題を追加する
-func GenerateAndAddStatement(questionID string) (*models.QuestionStatement, error) {
+func GenerateAndAddStatement(questionID string, requestedType string) (*models.QuestionStatement, error) {
 	// 1. 親問題(Question)を取得（Textbookの情報も一緒に！）
 	var parentQuestion models.Question
 
@@ -373,10 +374,36 @@ func GenerateAndAddStatement(questionID string) (*models.QuestionStatement, erro
 	// 3. 教科書のタイプをパターンとして使用
 	// 例: textbook.Type が "4択問題形式" なら、それがそのままAIへの指示になる
 	pattern := string(parentQuestion.Textbook.Type)
+	if requestedType != "" {
+		pattern = requestedType
+	}
+
+	var resultItem dtos.ResultItem
+	var err error
 
 	// 4. AIに生成を依頼
 	// existingTexts を渡すことで、AIは「これらと被らない、違う方向性の問題」を作ろうとします
-	resultItem, err := GenerateSingle4ChoiceQuestion(parentQuestion.Answer, pattern, existingTexts)
+	switch models.TextbookType(pattern) {
+	case models.Type4Choice, models.TypeFillIn4Choice:
+		// 4択系の場合
+		resultItem, err = GenerateSingle4ChoiceQuestion(parentQuestion.Answer, pattern, existingTexts)
+	
+	case models.TypeFillIn, models.TypeInput:
+		// 記述系の場合
+		// (GenerateWorkbookForQAndA を流用して1問だけ作る)
+		var items []dtos.ResultItem
+		items, err = GenerateWorkbookForQAndA([]string{parentQuestion.Answer}, pattern)
+		if err == nil && len(items) > 0 {
+			resultItem = items[0]
+		} else if err == nil {
+			err = fmt.Errorf("no question generated")
+		}
+
+	default:
+		// デフォルトは4択系で試みる
+		resultItem, err = GenerateSingle4ChoiceQuestion(parentQuestion.Answer, pattern, existingTexts)
+	}
+
 	if err != nil {
 		return nil, err
 	}

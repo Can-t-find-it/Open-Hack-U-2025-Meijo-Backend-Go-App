@@ -12,9 +12,9 @@ type TextbookType string
 // 定数をその型で定義する
 const (
 	Type4Choice       TextbookType = "4択問題形式"
-	TypeFillIn        TextbookType = "穴埋め入力"
-	TypeFillIn4Choice TextbookType = "穴埋め4択"
-	TypeInput         TextbookType = "入力"
+	TypeFillIn        TextbookType = "穴埋め解答入力形式"
+	TypeFillIn4Choice TextbookType = "穴埋め4択問題形式"
+	TypeInput         TextbookType = "解答入力形式"
 )
 
 // Folder: 科目や資格ごとのフォルダ
