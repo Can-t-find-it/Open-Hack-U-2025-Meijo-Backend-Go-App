@@ -5,7 +5,7 @@ import (
 )
 
 type Team struct {
-    ID        uint   `gorm:"primaryKey"`
+    ID        string   `gorm:"primaryKey"`
     Name      string
     CreatedAt time.Time
     UpdatedAt time.Time

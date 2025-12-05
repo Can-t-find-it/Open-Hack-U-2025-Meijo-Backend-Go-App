@@ -82,7 +82,7 @@ func (s *AuthService) Signup(input dtos.UserSignup) (*dtos.LoginResponse, error)
 	}, nil
 }
 
-func GenerateToken(userID uint, username string) (string, error) {
+func GenerateToken(userID string, username string) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id":  userID,
 		"username": username,

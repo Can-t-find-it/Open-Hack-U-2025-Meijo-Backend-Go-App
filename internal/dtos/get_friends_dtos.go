@@ -1,7 +1,7 @@
 package dtos
 
 type SoloGetFriend struct {
-	FriendsID int    `json:"id"`
+	FriendsID string    `json:"friend_id"`
 	Name      string `json:"name"`
 }
 type GetFriends struct {

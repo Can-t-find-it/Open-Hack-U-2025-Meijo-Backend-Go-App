@@ -9,13 +9,16 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"errors"
 
 	"hacku_2025_meijo/internal/database"
 	"hacku_2025_meijo/internal/dtos" // DTOsパッケージをインポート
 	"hacku_2025_meijo/internal/models"
 
-)
+	"github.com/google/uuid" // UUID生成用
+	"gorm.io/gorm"
 
+)
 
 // OpenAI APIエンドポイント
 const openaiAPIURL = "https://api.openai.com/v1/chat/completions"
@@ -284,31 +287,45 @@ func Generate4ChoiceWorkbookForQAndA(answers []string, pattern string) ([]dtos.R
 	return results, nil
 }
 
-
 // SaveQuestionToDB: 生成された問題を保存する（重複チェック付き）
-func SaveQuestionToDB(textbookID uint, item dtos.ResultItem, answer string) (uint, error) {
-
-	// 1. まず、同じ教科書の中に「同じ答え(Answer)」の問題が既にないか探す
+func SaveQuestionToDB(textbookID string, item dtos.ResultItem, answer string) (string, error) {
 	var question models.Question
-	
-	// "textbook_id" と "answer" が一致するものを探す
-	result := database.DB.Where("textbook_id = ? AND answer = ?", textbookID, answer).First(&question)
 
-	if result.Error != nil {
-		// 見つからなかった場合（新規作成）
-		question = models.Question{
-			TextbookID: textbookID,
-			Answer:     answer,
-		}
-		// まず親を作る
-		if err := database.DB.Create(&question).Error; err != nil {
-			return 0, err
+	// "textbook_id" と "answer" が一致するものを探す
+	err := database.DB.Where("textbook_id = ? AND answer = ?", textbookID, answer).First(&question).Error
+
+	if err != nil {
+		// データが見つからない場合 (ErrRecordNotFound) は新規作成
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			newQuestion := models.Question{
+				ID:         uuid.New().String(), // ★修正: ここで確実にUUIDを生成して入れる！
+				TextbookID: textbookID,
+				Answer:     answer,
+			}
+			if createErr := database.DB.Create(&newQuestion).Error; createErr != nil {
+				return "", createErr
+			}
+			// 作成したデータを question 変数に入れる
+			question = newQuestion
+		} else {
+			// それ以外のDBエラー
+			return "", err
 		}
 	}
 
-	// 2. 子データ（QuestionStatement）を追加する
-	// 親のID (question.ID) を紐付ける
+	// 2. 重複チェック（同じ問題文が既にないか）
+	var count int64
+	database.DB.Model(&models.QuestionStatement{}).
+		Where("question_id = ? AND statement = ?", question.ID, item.Question).
+		Count(&count)
+
+	if count > 0 {
+		return question.ID, nil
+	}
+
+	// 3. 子データ（QuestionStatement）を追加する
 	newStatement := models.QuestionStatement{
+		ID:         uuid.New().String(), // ★修正: ここも確実にUUIDを入れる！
 		QuestionID: question.ID,
 		Statement:  item.Question,
 		Explain:    item.Explanation,
@@ -316,7 +333,7 @@ func SaveQuestionToDB(textbookID uint, item dtos.ResultItem, answer string) (uin
 	}
 
 	if err := database.DB.Create(&newStatement).Error; err != nil {
-		return 0, err
+		return "", err
 	}
 
 	return question.ID, nil
@@ -331,12 +348,12 @@ func DeleteQuestionByID(id string) error {
 }
 
 // 修正版: 教科書のタイプ（4択など）に合わせて、新しい切り口の問題を追加する
-func GenerateAndAddStatement(questionID uint) (*models.QuestionStatement, error) {
+func GenerateAndAddStatement(questionID string) (*models.QuestionStatement, error) {
 	// 1. 親問題(Question)を取得（Textbookの情報も一緒に！）
 	var parentQuestion models.Question
 
 	// Preload("Textbook") を追加して、教科書のタイプ（4択など）を知れるようにする
-	if err := database.DB.Preload("Textbook").Preload("QuestionStatements").First(&parentQuestion, questionID).Error; err != nil {
+	if err := database.DB.Preload("Textbook").Preload("QuestionStatements").First(&parentQuestion, "id = ?", questionID).Error; err != nil {
 		return nil, err
 	}
 
@@ -348,7 +365,7 @@ func GenerateAndAddStatement(questionID uint) (*models.QuestionStatement, error)
 
 	// 3. 教科書のタイプをパターンとして使用
 	// 例: textbook.Type が "4択問題形式" なら、それがそのままAIへの指示になる
-	pattern :=string (parentQuestion.Textbook.Type)
+	pattern := string(parentQuestion.Textbook.Type)
 
 	// 4. AIに生成を依頼
 	// existingTexts を渡すことで、AIは「これらと被らない、違う方向性の問題」を作ろうとします
@@ -373,7 +390,7 @@ func GenerateAndAddStatement(questionID uint) (*models.QuestionStatement, error)
 }
 
 // CreateFolder: 新しいフォルダを作成する
-func CreateFolder(userID uint, name string) (*models.Folder, error) {
+func CreateFolder(userID string, name string) (*models.Folder, error) {
 	newFolder := models.Folder{
 		UserID:   userID,
 		Name:     name,
@@ -394,18 +411,22 @@ func SuggestNewWordsViaAI(currentWords []string) ([]string, error) {
 	wordsStr := strings.Join(currentWords, ", ")
 
 	prompt := fmt.Sprintf(`
-	あなたは学習のカリキュラム作成者です。
-	ある学生が以下の単語を「既に学習済み」です。
-	学習済み単語: [%s]
+You are an IT learning curriculum creator.
+A student has already learned the following terms:
+Learned terms: [%s]
 
-	この学生が次にステップアップするために覚えるべき、関連性の高い「まだ学習していない新しい単語」を3つ提案してください。
+Please propose three new terms that the student has *not learned yet* and that are highly related, helping them take the next step in their learning.
 
-	【絶対的な禁止事項】
-	・上記の「学習済み単語」に含まれる単語は、**絶対に出力しないでください**。
-	・同じ単語を繰り返さないでください。
 
-	【出力形式】
-	「単語1,単語2,単語3」のようにカンマ区切りで単語のみを出力すること。解説不要。
+[ABSOLUTE RESTRICTIONS]
+- Do NOT output any term that appears in the list of "Learned terms".
+- Do NOT repeat the same term.
+
+[OUTPUT FORMAT]
+Output only the three terms separated by commas, like: "term1, term2, term3". No explanations.
+
+[ADDITIONAL REQUIREMENT]
+Provide your output in Japanese.
 	`, wordsStr)
 
 	apiResp, err := callOpenAIAPI(prompt)
@@ -419,7 +440,7 @@ func SuggestNewWordsViaAI(currentWords []string) ([]string, error) {
 
 	// 重複フィルター処理
 	var resultList []string
-	
+
 	// 1. 既存単語をマップに登録（検索を速くするため）
 	existingMap := make(map[string]bool)
 	for _, w := range currentWords {
@@ -445,7 +466,7 @@ func SuggestNewWordsViaAI(currentWords []string) ([]string, error) {
 }
 
 // GenerateAndSaveBatch: 単語リストから問題を一括生成し、指定の教科書に保存する（共通機能）
-func GenerateAndSaveBatch(textbookID uint, textbookType string, answers []string) ([]dtos.ResultItem, error) {
+func GenerateAndSaveBatch(textbookID string, textbookType string, answers []string) ([]dtos.ResultItem, error) {
 	var resultItems []dtos.ResultItem
 	var err error
 
@@ -456,7 +477,6 @@ func GenerateAndSaveBatch(textbookID uint, textbookType string, answers []string
 	case models.TypeFillIn, models.TypeInput:
 		resultItems, err = GenerateWorkbookForQAndA(answers, textbookType)
 	default:
-		// 未知のタイプなら記述式でトライ
 		resultItems, err = GenerateWorkbookForQAndA(answers, textbookType)
 	}
 
@@ -474,11 +494,10 @@ func GenerateAndSaveBatch(textbookID uint, textbookType string, answers []string
 
 		id, err := SaveQuestionToDB(textbookID, item, currentAnswer)
 		if err != nil {
-			// エラーログを出して続行
 			fmt.Println("Save Error:", err)
 			continue
 		}
-		
+
 		item.ID = id
 		finalQuestions = append(finalQuestions, item)
 	}

@@ -13,7 +13,7 @@ import (
 
 // --- ユーザーのステータスを返す ---
 func GetUserStatus(c *gin.Context) {
-    userID := c.GetUint("userID") // JWTから取得している想定
+    userID := c.GetString("userID") // JWTから取得している想定
 
     var user models.User
     if err := database.DB.Preload("Folders.Textbooks").First(&user, userID).Error; err != nil {
@@ -50,7 +50,7 @@ func GetUserStatus(c *gin.Context) {
 }
 
 
-func calculateStreakDays(userID uint) int {
+func calculateStreakDays(userID string) int {
     var logs []models.StudyLog
     database.DB.Where("user_id = ?", userID).Order("answered_at DESC").Find(&logs)
 

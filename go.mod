@@ -6,6 +6,7 @@ require (
 	github.com/dslipak/pdf v0.0.2
 	github.com/gin-gonic/gin v1.11.0
 	github.com/golang-jwt/jwt/v5 v5.3.0
+	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
 	github.com/sideshow/apns2 v0.25.0
 	golang.org/x/crypto v0.44.0

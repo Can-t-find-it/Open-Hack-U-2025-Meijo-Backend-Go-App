@@ -25,8 +25,8 @@ func (h *DeviceHandler) SaveDeviceToken(c *gin.Context) {
     }
 
     // JWT から userID を取得
-    userID := c.GetUint("userID") // ミドルウェアでセットされている前提
-    if userID == 0 {
+    userID := c.GetString("userID") // ミドルウェアでセットされている前提
+    if userID == "" {
         c.JSON(http.StatusUnauthorized, gin.H{"error": "ユーザー認証に失敗しました"})
         return
     }

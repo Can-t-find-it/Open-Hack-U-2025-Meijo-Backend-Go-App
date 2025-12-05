@@ -9,7 +9,7 @@ import (
 
 type TextbookCopyService struct{}
 
-func (s *TextbookCopyService) AddTextbook(userID uint, targetFolderID uint, sourceTextbookID uint) error {
+func (s *TextbookCopyService) AddTextbook(userID string, targetFolderID string, sourceTextbookID string) error {
 
 	return database.DB.Transaction(func(tx *gorm.DB) error {
 
@@ -63,7 +63,7 @@ func (s *TextbookCopyService) AddTextbook(userID uint, targetFolderID uint, sour
 					newStmt := stmt
 
 					// 重要なID部分を書き換える
-					newStmt.ID = 0                      // 新規作成にする
+					newStmt.ID = ""                      // 新規作成にする
 					newStmt.QuestionID = newQuestion.ID // 新しい問題に紐付け
 
 					newStatements = append(newStatements, newStmt)

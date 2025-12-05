@@ -8,11 +8,11 @@ type RequestBody struct {
     Pattern           string   `json:"pattern"`             // 問題形式
     ExistingQuestions []string `json:"existing_questions"`
     
-    TextbookID        uint     `json:"textbookId"`         // 保存先の教科書ID// 重複回避用
+    TextbookID        string   `json:"textbookId"`         // 保存先の教科書ID// 重複回避用
 }
 
 type ResultItem struct {
-    ID          uint     `json:"id"`
+    ID          string   `json:"id"`
     Question    string   `json:"question"`
     Options     []string `json:"options,omitempty"`       // 四択のみ
     Explanation string   `json:"explanation"`

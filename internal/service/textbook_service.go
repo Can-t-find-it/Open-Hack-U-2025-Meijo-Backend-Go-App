@@ -2,9 +2,13 @@ package service
 
 import (
 	"fmt"
+	"time"
+
 	"hacku_2025_meijo/internal/database" // DB接続変数 (DB) がある場所
 	"hacku_2025_meijo/internal/dtos"
 	"hacku_2025_meijo/internal/models"
+
+	"github.com/google/uuid"
 )
 
 // ==========================================
@@ -12,7 +16,7 @@ import (
 // ==========================================
 
 // GetUserTextbooks: ユーザーのフォルダと、その中の問題集一覧を全部取得
-func GetUserTextbooks(userID uint) ([]dtos.FolderResponse, error) {
+func GetUserTextbooks(userID string) ([]dtos.FolderResponse, error) {
 	var folders []models.Folder
 
 	// 1. DBから全データを取得 (ここは変わらず)
@@ -26,11 +30,14 @@ func GetUserTextbooks(userID uint) ([]dtos.FolderResponse, error) {
 	}
 
 	// 2. 必要なデータだけを「詰め替え」作業
-	var response []dtos.FolderResponse
+	response := []dtos.FolderResponse{}
 
 	for _, f := range folders {
 		// 教科書リストの詰め替え
 		var currentTextbooks []dtos.TextbookResponse
+		if f.Textbooks == nil {
+			currentTextbooks = []dtos.TextbookResponse{}
+		}
 		for _, t := range f.Textbooks {
 			currentTextbooks = append(currentTextbooks, dtos.TextbookResponse{
 				ID:   t.ID,
@@ -63,7 +70,7 @@ func GetTextbookDetail(textbookID string) (*dtos.TextbookDetailResponse, error) 
 	if result.Error != nil {
 		return nil, result.Error
 	}
-	
+
 	var questionsResp []dtos.QuestionResponse
 	for _, q := range textbook.Questions {
 		var statementsResp []dtos.QuestionStatementResponse
@@ -72,7 +79,7 @@ func GetTextbookDetail(textbookID string) (*dtos.TextbookDetailResponse, error) 
 				ID:                s.ID,
 				QuestionStatement: s.Statement,
 				Choices:           s.Choices,
-				Explain:          s.Explain,
+				Explain:           s.Explain,
 			})
 		}
 		questionsResp = append(questionsResp, dtos.QuestionResponse{
@@ -96,7 +103,7 @@ func GetTextbookDetail(textbookID string) (*dtos.TextbookDetailResponse, error) 
 
 // CreateTextbook: 新しい問題集を作成
 // 引数の typeStr は、ユーザーからの入力なので string のままでOK
-func CreateTextbook(name string, typeStr string, folderID uint) error {
+func CreateTextbook(name string, typeStr string, folderID string) error {
 	
 	// 1. 入力された文字列を、専用の型にキャスト（変換）してみる
 	inputType := models.TextbookType(typeStr)
@@ -108,7 +115,7 @@ func CreateTextbook(name string, typeStr string, folderID uint) error {
 	default:
 		// NG！
 		return fmt.Errorf("無効なタイプです: %s", typeStr)
-	
+
 	}
 
 	// 3. 保存処理
@@ -126,29 +133,10 @@ func CreateTextbook(name string, typeStr string, folderID uint) error {
 // ==========================================
 
 // AddQuestionToTextbook: 生成された問題データをDB構造に変換して保存
-func AddQuestionToTextbook(textbookID uint, item dtos.ResultItem, answer string) error {
-
-	// 1. Question（親：正解データ）を作成
-	question := models.Question{
-		TextbookID: textbookID,
-		Answer:     answer, // 正解の文字列（例: "リンゴ"）
-		// QuestionStatements（子：出題文・選択肢）をネストして作成
-		QuestionStatements: []models.QuestionStatement{
-			{
-				Statement: item.Question,    // 問題文
-				Explain:   item.Explanation, // 解説
-				Choices:   item.Options,     // 選択肢配列 (JSONとして保存される)
-			},
-		},
-	}
-
-	// 2. DBに保存
-	// 親のQuestionを保存すれば、子のStatementも自動で保存されます
-	if err := database.DB.Create(&question).Error; err != nil {
-		return err
-	}
-
-	return nil
+func AddQuestionToTextbook(textbookID string, item dtos.ResultItem, answer string) error {
+	// ★修正: 自分で保存処理を書かず、重複チェック機能付きの SaveQuestionToDB を呼ぶだけにする
+	_, err := SaveQuestionToDB(textbookID, item, answer)
+	return err
 }
 
 // ----------------------------------------------------
@@ -165,7 +153,7 @@ func DeleteQuestion(questionID string) error {
 
 // AddQuestionStatement: 既存の問題（親）に、新しい聞き方（子）を追加する
 // 例: 「1+1は？」という問題(ID:10)に対して、「1に1を足すと？」という別パターンを追加
-func AddQuestionStatement(questionID uint, statement string, explain string, choices []string) error {
+func AddQuestionStatement(questionID string, statement string, explain string, choices []string) error {
 	newStatement := models.QuestionStatement{
 		QuestionID: questionID,
 		Statement:  statement,
@@ -185,33 +173,64 @@ func DeleteQuestionStatement(statementID string) error {
 // GetRandomSuggestedWords: ランダムに指定個数の単語を取得する
 func GetRandomSuggestedWords(limit int) ([]string, error) {
 	var questions []models.Question
-	
+
 	// Limit(limit) で個数を指定
 	result := database.DB.Order("RANDOM()").Limit(limit).Find(&questions)
-	
+
 	if result.Error != nil {
 		return nil, result.Error
 	}
-	
+
 	var words []string
 	for _, q := range questions {
 		words = append(words, q.Answer)
 	}
 	return words, nil
 }
+
 // UpdateTextbookStatus: 教科書のスコアと回数を更新する（学習後に呼ぶ用）
-func UpdateTextbookStatus(textbookID string, newScore float64) error {
+func UpdateTextbookStatus(textbookID string, newScore float64, userID string) error {
 	var textbook models.Textbook
 	if err := database.DB.First(&textbook, "id = ?", textbookID).Error; err != nil {
 		return err
 	}
+	var user models.User
+	if err := database.DB.First(&user, "id = ?", userID).Error; err != nil {
+		return err
+	}
+
 
 	// 回数を+1
 	textbook.PlayTimes += 1
 	// スコア履歴に追加
 	textbook.ScoreHistory = append(textbook.ScoreHistory, newScore)
+	if err := database.DB.Save(&textbook).Error; err != nil {
+		return err
+	}
 
-	return database.DB.Save(&textbook).Error
+	studyLog := models.StudyLog{
+		ID:            uuid.New().String(),
+		UserID:        userID,
+		TextbookID:    textbookID,
+		Score:         newScore,
+		AnsweredAt:    time.Now(),
+
+		
+		// ★ここで名前を保存します（スナップショット）
+		Name:          user.Name,      // "しまけん"
+		TextbookName:  textbook.Name,  // "アルゴリズム演習"
+		Accuracy:      newScore,       // 今回はスコアをそのまま正答率として扱う
+		TodayProgress: 1,              // (仮) 1回分進んだ
+	}
+
+	if err := database.DB.Create(&studyLog).Error; err != nil {
+		return err
+	}
+
+	// 5. フォルダ進捗更新 (定義されていれば)
+	// return updateFolderProgress(textbook.FolderID)
+	
+	return nil
 }
 
 // DeleteFolder: フォルダを削除する（中身も全消去）
@@ -225,7 +244,7 @@ func DeleteFoldersBatch(folderIDs []string) error {
 // GetWordsInTextbook: 教科書に含まれる全ての正解単語を取得する
 func GetWordsInTextbook(textbookID string) ([]string, error) {
 	var questions []models.Question
-	
+
 	// 指定された教科書のQuestionを全部取ってくる
 	result := database.DB.Where("textbook_id = ?", textbookID).Find(&questions)
 	if result.Error != nil {

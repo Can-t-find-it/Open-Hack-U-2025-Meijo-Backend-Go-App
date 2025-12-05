@@ -3,7 +3,7 @@ package dtos
 import "time"
 
 type SoloTextbook struct {
-	TextbookId uint      `json:"textbookId"`
+	TextbookId string    `json:"textbookId"`
 	Name       string    `json:"name"`
 	PlayTimes  int       `json:"questionCount"`
 	CreatedAt  time.Time `json:"created_at"`
@@ -11,7 +11,7 @@ type SoloTextbook struct {
 }
 
 type ResponseTextbooks struct {
-	FriendId  uint           `json:"friendId"`
+	FriendId  string         `json:"friendId"`
 	UserName  string         `json:"userName"`
 	Textbooks []SoloTextbook `json:"textbooks"`
 }

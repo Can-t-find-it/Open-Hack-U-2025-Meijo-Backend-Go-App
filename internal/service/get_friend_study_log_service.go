@@ -8,12 +8,12 @@ import (
 
 type GetFriendStudyLogService struct{}
 
-func (s *GetFriendStudyLogService) GetFriendStudyLog(userId uint) (*dtos.AllFriendsStudyLog, error) {
+func (s *GetFriendStudyLogService) GetFriendStudyLog(userId string) (*dtos.AllFriendsStudyLog, error) {
 	var allStudyLogs []models.StudyLog
 
 	var myFriends []models.Friend
 
-	var myFriendsID []uint
+	var myFriendsID []string
 	
 	if err := database.DB.Where("user_id = ?", userId).Find(&myFriends).Error; err != nil {
 		return nil, err
@@ -33,7 +33,7 @@ func (s *GetFriendStudyLogService) GetFriendStudyLog(userId uint) (*dtos.AllFrie
 		dto := dtos.FriendStudyLog{
 			ID: log.ID,
 			FriendID:   log.UserID,
-			FriendName: log.FriendName,
+			FriendName: log.Name,
 			AnsweredAt: log.AnsweredAt,
 			TextbookName: log.TextbookName,
 			Accuracy: log.Accuracy,

@@ -1,12 +1,11 @@
 package handlers
 
 import (
-	"hacku_2025_meijo/internal/dtos"
-	"hacku_2025_meijo/internal/service"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"hacku_2025_meijo/internal/dtos"
+	"hacku_2025_meijo/internal/service"
 )
 
 type ChangeFriendsHandler struct {
@@ -19,84 +18,74 @@ func NewAddFriendsHandler() *ChangeFriendsHandler {
 	}
 }
 
+// AddFriends: フレンド追加 (JSONでリストを受け取る)
 func (h *ChangeFriendsHandler) AddFriends(c *gin.Context) {
-	userID := c.GetUint("userID")
-
-	if userID == 0 {
+	// 1. 自分のID取得 (Middlewareでセットされた値)
+	// modelsをstringにしたので、Middlewareもstringでセットしているはず
+	userID := c.GetString("userID") 
+	if userID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "再度ログインしてください"})
 		return
 	}
 
-	idStr := c.Param("id")
-
-	friendID, err := strconv.Atoi(idStr)
-
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "IDは数字で指定してください"})
+	friendID := c.Param("id")
+	if friendID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "friend_id is required"})
 		return
 	}
 
-	var FriendID_slice []int
-
-	FriendID_slice = append(FriendID_slice, friendID)
-
-	var Finally_FriendID dtos.AddFriends
-
-	Finally_FriendID = dtos.AddFriends{
-		Friends: FriendID_slice,
+	// 3. Service呼び出し
+	input := dtos.AddFriends{
+		Friends: []string{friendID},
 	}
 
-	_, err = h.service.AddFriends(userID, Finally_FriendID)
-
+	_, err := h.service.AddFriends(userID, input)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	// c.JSON(http.StatusOK, response)
+
 	c.Status(http.StatusNoContent)
 }
 
-// 複数人削除 (DELETE /api/friends)
+// DeleteFriendsBatch: 複数人削除 (JSONでリストを受け取る)
 func (h *ChangeFriendsHandler) DeleteFriendsBatch(c *gin.Context) {
-	// 1. 自分のID (トークン)
-	userID := c.GetUint("userID")
-	if userID == 0 {
+	userID := c.GetString("userID")
+	if userID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
 
-	idStr := c.Param("id")
 
-	deleteId, err := strconv.Atoi(idStr)
+	friendID := c.Param("id")
+	if friendID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "friend_id is required"})
+		return
+	}
 
+	// 3. Serviceを呼ぶ
+	// (既存のDeleteFriendsBatchサービスはリストを受け取るので、1つだけのリストを作って渡す)
+	err := h.service.DeleteFriendsBatch(userID, []string{friendID})
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "IDは数字で指定してください"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	var deleteIdSlice []int
 
-	deleteIdSlice = append(deleteIdSlice, deleteId)
-
-	// 3. Serviceを一括削除モードで呼ぶ
-	error := h.service.DeleteFriendsBatch(userID, deleteIdSlice)
-	if error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": error.Error()})
-		return
-	}
-
-	// c.JSON(http.StatusOK, gin.H{"message": "指定されたフレンドを削除しました"})
 	c.Status(http.StatusNoContent)
 }
 
-// フレンド一括取得
+// GetFriends: フレンド一括取得
 func (h *ChangeFriendsHandler) GetFriends(c *gin.Context) {
-	userID := c.GetUint("userID")
+	userID := c.GetString("userID")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
 
 	response, err := h.service.GetFriends(userID)
-
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 

@@ -2,13 +2,13 @@ package handlers
 
 import (
 	"net/http"
-	"strconv"
+
+	"hacku_2025_meijo/internal/database"
+	"hacku_2025_meijo/internal/dtos"
+	"hacku_2025_meijo/internal/models"
+	"hacku_2025_meijo/internal/service"
 
 	"github.com/gin-gonic/gin"
-	"hacku_2025_meijo/internal/dtos"
-	"hacku_2025_meijo/internal/service"
-	"hacku_2025_meijo/internal/models"
-	"hacku_2025_meijo/internal/database"
 )
 
 // ==========================================
@@ -61,59 +61,56 @@ func GenerateQuestion4ChoiceHandler(c *gin.Context) {
 // ---- POST 問題生成・保存 (教科書の設定に従う版) ----
 // ---- POST 問題生成・保存 (パスパラメータ版) ----
 func GenerateProblemHandler(c *gin.Context) {
-	// 1. URLから教科書IDを取得する (例: /generate_problem/5 の "5")
-	textbookIDStr := c.Param("textbook_id")
-	
-	// 文字列を数字(uint)に変換
-	idInt, err := strconv.Atoi(textbookIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid textbook ID in path"})
-		return
-	}
-	textbookID := uint(idInt)
+	// 1. URLから教科書IDを取得
+	// ★修正: 数字への変換(strconv.Atoi)を削除し、文字列のまま受け取る
+	textbookID := c.Param("textbook_id")
 
-	// 2. JSONボディを受け取る (TextbookIDはここにはもう不要)
 	var body dtos.RequestBody
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON: " + err.Error()})
 		return
 	}
 
-	// 3. DBから教科書の情報を取得して、Type（形式）を確認する
+	// パスになければBodyから取得
+	if textbookID == "" {
+		if body.TextbookID != "" { // ★修正: stringなので "" と比較
+			textbookID = body.TextbookID
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "textbookId is required"})
+			return
+		}
+	}
+
+	// 2. 教科書の情報を取得
 	var textbook models.Textbook
-	if err := database.DB.First(&textbook, textbookID).Error; err != nil {
+	// ★修正: ID(string)をそのまま検索条件に使う
+	if err := database.DB.First(&textbook, "id = ?", textbookID).Error; err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Textbook not found"})
 		return
 	}
 	pattern := string(textbook.Type)
 
-	var resultItems []dtos.ResultItem
+	// 3. 単語リストの整理
 	var targetAnswers []string
-
-
-	// 4. 単語リストの整理
 	if len(body.Answers) > 0 {
 		targetAnswers = body.Answers
 	} else if body.Answer != "" {
 		targetAnswers = []string{body.Answer}
 	} else {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "answer or answers is required"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "words (or answer) is required"})
 		return
 	}
 
-	// 5. 生成ロジック (変更なし)
+	// 4. 生成ロジック
+	var resultItems []dtos.ResultItem
+	var err error
+
 	switch models.TextbookType(pattern) {
-
 	case models.Type4Choice, models.TypeFillIn4Choice:
-
 		resultItems, err = service.Generate4ChoiceWorkbookForQAndA(targetAnswers, pattern)
-
 	case models.TypeFillIn, models.TypeInput:
-
 		resultItems, err = service.GenerateWorkbookForQAndA(targetAnswers, pattern)
-
 	default:
-
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Unsupported textbook type: " + pattern})
 		return
 	}
@@ -123,22 +120,15 @@ func GenerateProblemHandler(c *gin.Context) {
 		return
 	}
 
-	if len(resultItems) == 0 {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成された問題が0件でした"})
-		return
-	}
-
-	// 6. DB保存 (URLから取った textbookID を使う！)
+	// 5. DB保存
 	var finalResponse []dtos.ResultItem
-
 	for i, item := range resultItems {
-
 		currentAnswer := ""
 		if i < len(targetAnswers) {
 			currentAnswer = targetAnswers[i]
 		}
 
-		// ★ここでURL由来のIDを使う
+		// ★修正: textbookID (string) をそのまま渡す！これでエラーが消えます
 		id, err := service.SaveQuestionToDB(textbookID, item, currentAnswer)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "DB保存エラー: " + err.Error()})
@@ -150,6 +140,7 @@ func GenerateProblemHandler(c *gin.Context) {
 
 	c.Status(http.StatusNoContent)
 }
+
 
 // ---- POST 四択 複数 (個別API) ----
 func Generate4ChoiceWorkbookForQAndAHandler(c *gin.Context) {
@@ -223,12 +214,13 @@ func GenerateWorkbookForQAndAHandler(c *gin.Context) {
 
 // GET /api/textbooks - 自分の問題集一覧取得
 func GetTextbooksHandler(c *gin.Context) {
-	userIDValue, exists := c.Get("userID")
-    if !exists {
-        c.JSON(http.StatusUnauthorized, gin.H{"error": "ユーザーIDがありません"})
-        return
-    }
-    userID := userIDValue.(uint)
+	userID := c.GetString("userID")
+	
+	// IDが空（取れなかった）場合のエラー処理
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "ユーザーIDがありません（再ログインしてください）"})
+		return
+	}
 
 	result, err := service.GetUserTextbooks(userID)
 	if err != nil {
@@ -248,7 +240,7 @@ func CreateTextbookHandler(c *gin.Context) {
 	var req struct {
 		Name     string `json:"name"`
 		Type     string `json:"type"`
-		FolderID uint   `json:"folderId"`
+		FolderID string `json:"folderId"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -294,14 +286,14 @@ func UpdateTextbookResultHandler(c *gin.Context) {
 	textbookID := c.Param("id")
 
 	var req struct {
-		Score      float64 `json:"score"`
+		Score float64 `json:"score"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON: " + err.Error()})
 		return
 	}
 
-	err := service.UpdateTextbookStatus(textbookID, req.Score)
+	err := service.UpdateTextbookStatus(textbookID, req.Score, c.GetString("userID"))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -312,7 +304,7 @@ func UpdateTextbookResultHandler(c *gin.Context) {
 // POST /api/question - 生成した問題をDBに保存 (単体)
 func AddQuestionHandler(c *gin.Context) {
 	var req struct {
-		TextbookID uint            `json:"textbookId"`
+		TextbookID string          `json:"textbookId"`
 		Answer     string          `json:"answer"`
 		ResultItem dtos.ResultItem `json:"resultItem"`
 	}
@@ -337,7 +329,6 @@ func AddQuestionHandler(c *gin.Context) {
 
 // DELETE /api/question/:id - 問題（親）ごとの削除
 func DeleteQuestionHandler(c *gin.Context) {
-	
 
 	questionID := c.Param("id")
 
@@ -354,7 +345,7 @@ func DeleteQuestionHandler(c *gin.Context) {
 // POST /api/questionstatements - 既存の問題に新しい聞き方を追加
 func AddQuestionStatementHandler(c *gin.Context) {
 	var req struct {
-		QuestionID uint     `json:"questionId"`
+		QuestionID string   `json:"questionId"`
 		Statement  string   `json:"questionStatement"`
 		Explain    string   `json:"explain"`
 		Choices    []string `json:"choices"`
@@ -389,11 +380,10 @@ func DeleteQuestionStatementHandler(c *gin.Context) {
 // GET /api/word - 覚えたい単語提案 (AI版)
 func SuggestWordHandler(c *gin.Context) {
 
-	textbookID := c.Param("textbook_id")
-
+	textbookID := c.Param("id")
 
 	if textbookID == "" {
-		textbookID = c.Query("textbook_id")
+		textbookID = c.Query("id")
 	}
 
 	var suggestedWords []string // 配列に変更
@@ -430,20 +420,16 @@ func SuggestWordHandler(c *gin.Context) {
 		"suggestWord": suggestedWords,
 	})
 }
+
 // POST /api/generate_statement
 func GenerateAndAddStatementHandler(c *gin.Context) {
 	// 1. URLからIDを取得 (パスパラメータ)
-	questionIDStr := c.Param("question_id")
-	idInt, err := strconv.Atoi(questionIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid question ID"})
-		return
-	}
-	questionID := uint(idInt)
+	questionID := c.Param("question_id")
 
+	
 	// 2. 生成 & 保存
 	// ★修正: 戻り値を使わないので newStmt ではなく _ で受け取る！
-	_, err = service.GenerateAndAddStatement(questionID)
+	_, err := service.GenerateAndAddStatement(questionID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Generation failed: " + err.Error()})
 		return
@@ -455,32 +441,32 @@ func GenerateAndAddStatementHandler(c *gin.Context) {
 
 // POST /api/folders - フォルダ作成
 func CreateFolderHandler(c *gin.Context) {
-    // Middlewareでセットされた userID を取得
-    userIDValue, exists := c.Get("userID")
-    if !exists {
-        c.JSON(http.StatusUnauthorized, gin.H{"error": "ユーザーIDがありません"})
-        return
-    }
-    userID := userIDValue.(uint)
+	var req struct {
+		FolderName string `json:"folderName"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
+		return
+	}
+	
+	// ユーザーIDは uint で取得される(ミドルウェア次第だが)
+	userID := c.GetString("userID")
 
-    var req struct {
-        Name string `json:"folderName"`
-    }
-    if err := c.ShouldBindJSON(&req); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
-        return
-    }
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "ユーザーIDがありません"})
+		return
+	}
+	// 必要に応じて string に変換
+	// userID := strconv.Itoa(int(uidUint)) 
+	// ※ service.CreateFolder が uint を求めているならそのままでOK
 
-    _, err := service.CreateFolder(userID, req.Name)
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-        return
-    }
-
-    c.Status(http.StatusNoContent)
+	_, err := service.CreateFolder(userID,req.FolderName)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.Status(http.StatusNoContent)
 }
-
-
 
 
 
