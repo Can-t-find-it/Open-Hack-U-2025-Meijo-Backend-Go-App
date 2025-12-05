@@ -107,7 +107,8 @@ func (s *ChangeFriendsService) GetFriends(userID string) (*dtos.GetFriends, erro
 		return nil, err
 	}
 
-	var friend []dtos.SoloGetFriend
+	friend := []dtos.SoloGetFriend{}
+
 	for _, f := range existingFriends {
 		friend = append(friend, dtos.SoloGetFriend{
 			FriendsID: f.FriendUserID,
