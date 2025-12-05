@@ -48,8 +48,12 @@ func (s *ChangeFriendsService) AddFriends(userID string, input dtos.AddFriends) 
 		if existingMap[targetID] {
 			continue
 		}
-
-		friendsName := userNameMap[targetID]
+		friendsName, exists := userNameMap[targetID]
+		if !exists {
+			// IDに対応するユーザーが見つからない場合はスキップ
+			// (またはエラーとして返す設計もアリですが、今回はスキップします)
+			continue 
+		}
 
 		// 重複していない場合のみリストに追加
 		friend := models.Friend{

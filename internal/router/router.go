@@ -100,12 +100,12 @@ func SetupRouter() *gin.Engine {
 			protected.DELETE("/friend/change/:id", friendChangeHandler.DeleteFriendsBatch)
 			protected.GET("/friend/change", friendChangeHandler.GetFriends)
 
-			protected.POST("/friend/studylog", friendStudyLogHandler.GetFriendLog)
+			protected.GET("/friend/studylog", friendStudyLogHandler.GetFriendLog)
 
 			// フレンド問題集取得
 			protected.GET("/friend/textbooks", friendTextbookHandler.GetTextbooks)
 			protected.POST("/friend/textbooks", handlers.NewAddTextbookHandler().ImportTextbook)
-
+			protected.GET("/friend/textbook/:textbook_id", friendTextbookHandler.GetFriendTextbookDetail)
 			// === ペナルティ通知機能 ===
 			protected.POST("/penalty/check", handlers.NewPenaltyHandler().CheckPenalty)
 			protected.POST("/device_token", deviceHandler.SaveDeviceToken)
