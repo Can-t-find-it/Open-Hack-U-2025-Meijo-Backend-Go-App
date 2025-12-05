@@ -7,14 +7,13 @@ import (
 )
 
 func GetStudyLogsHandler(c *gin.Context) {
-	userIDValue, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "ユーザーIDがありません"})
+	userID := c.GetString("userID")
+	if userID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "JWTからユーザーIDの取得に失敗しました"})
 		return
 	}
-	userID := userIDValue.(uint)
-
-	logs, err := service.GetUserStudyLogs(userID)
+	
+	logs, err := service.GetLatestStudyLog(userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
