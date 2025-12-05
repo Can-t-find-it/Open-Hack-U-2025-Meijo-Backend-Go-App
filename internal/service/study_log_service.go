@@ -4,6 +4,7 @@ import (
 	"hacku_2025_meijo/internal/database"
 	"hacku_2025_meijo/internal/models"
 	"time"
+	"github.com/google/uuid"
 )
 
 type StudyLogService struct{}
@@ -17,15 +18,17 @@ func (s *StudyLogService) RecordStudyLog(userId string, textbookId string, score
 	}
 	
 	var scores []float64 = textbook.ScoreHistory
-	var total float64
-	for _, s := range scores {
-		total += s
-	}
+    scores = append(scores, score) // ★ 新しいスコアを追加
+    
+    var total float64
+    for _, s := range scores {
+        total += s
+    }
 
-	var accuracy float64
-	if len(scores) > 0 {
-		accuracy = total / float64(len(scores))
-	}
+    var accuracy float64
+    if len(scores) > 0 {
+        accuracy = total / float64(len(scores)) // 新しい平均値を計算
+    }
 
 	// 教科書名などは直接取得しているので、マップ生成処理は削除してシンプルにしました
 	// (database.GetTextbookIDToNameMap は不要)
@@ -41,6 +44,7 @@ func (s *StudyLogService) RecordStudyLog(userId string, textbookId string, score
 	var todayProgress int = 1 
 
 	insertStudyLogs := models.StudyLog{
+		ID:              uuid.New().String(),
 		UserID:        userId,
 		TextbookID:    textbookId,
 		Answered:      true,

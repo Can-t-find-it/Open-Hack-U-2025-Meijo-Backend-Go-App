@@ -29,7 +29,7 @@ func GetUserStudyLogs(userID uint) ([]dtos.StudyLogResponse, error) {
 		database.DB.First(&textbook, q.TextbookID)
 
 		responses = append(responses, dtos.StudyLogResponse{
-			ID:           fmt.Sprintf("id%d", l.ID),
+			ID:           fmt.Sprintf("id%s", l.ID),
 			UserName:     user.Name,
 			DateTime:     l.AnsweredAt.Format(time.RFC3339),
 			TextbookName: textbook.Name,
