@@ -15,7 +15,7 @@ func GetUserStudyLogs(userID uint) ([]dtos.StudyLogResponse, error) {
 	}
 
 	var user models.User
-	if err := database.DB.First(&user, userID).Error; err != nil {
+	if err := database.DB.Where("id = ?", userID).First(&user).Error; err != nil {
 		return nil, err
 	}
 

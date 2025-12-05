@@ -17,16 +17,18 @@ func NewFriendStudyLogHandler() *FriendStudyLogHandler {
 }
 
 func (h *FriendStudyLogHandler) GetFriendLog(c *gin.Context) {
-
+	// 1. ユーザーIDを取得 (string)
 	userID := c.GetString("userID")
-
 	if userID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
+
+	// 2. Serviceを呼ぶ
 	response, err := h.service.GetFriendStudyLog(userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		// ★修正: err だけだとJSONが空になることがあるので、err.Error() にする
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 

@@ -11,38 +11,34 @@ type StudyLogService struct{}
 func (s *StudyLogService) RecordStudyLog(userId string, textbookId string, score float64) error {
 	var textbook models.Textbook
 
+
 	if err := database.DB.Where("id = ?", textbookId).First(&textbook).Error; err != nil {
 		return err
 	}
-	var scores []float64
-	scores = textbook.ScoreHistory
-
-	var tmp float64
-
-	for _, i := range scores {
-		tmp += i
+	
+	var scores []float64 = textbook.ScoreHistory
+	var total float64
+	for _, s := range scores {
+		total += s
 	}
 
-	accuracy := tmp / float64(len(scores))
-
-	var textbookIdSlice []string
-
-	textbookIdSlice = append(textbookIdSlice, textbookId)
-
-	textbookMap, err := database.GetTextbookIDToNameMap(textbookIdSlice)
-	if err != nil {
-		return err
+	var accuracy float64
+	if len(scores) > 0 {
+		accuracy = total / float64(len(scores))
 	}
+
+	// 教科書名などは直接取得しているので、マップ生成処理は削除してシンプルにしました
+	// (database.GetTextbookIDToNameMap は不要)
 
 	var user models.User
-	if err := database.DB.Select("name").First(&user, userId).Error; err != nil {
+	
+	if err := database.DB.Select("name").Where("id = ?", userId).First(&user).Error; err != nil {
 		return err
 	}
 	name := user.Name
 
-	var todayProgress int
-
-	todayProgress++
+	// 暫定: 毎回1になるロジックのようなのでそのまま
+	var todayProgress int = 1 
 
 	insertStudyLogs := models.StudyLog{
 		UserID:        userId,
@@ -51,7 +47,7 @@ func (s *StudyLogService) RecordStudyLog(userId string, textbookId string, score
 		AnsweredAt:    time.Now(),
 		Score:         score,
 		Name:          name,
-		TextbookName:  textbookMap[textbookId],
+		TextbookName:  textbook.Name,
 		Accuracy:      accuracy,
 		TodayProgress: uint(todayProgress),
 	}
@@ -61,5 +57,4 @@ func (s *StudyLogService) RecordStudyLog(userId string, textbookId string, score
 	}
 
 	return nil
-
 }

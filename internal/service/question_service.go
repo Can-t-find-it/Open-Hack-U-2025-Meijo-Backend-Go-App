@@ -411,11 +411,11 @@ func SuggestNewWordsViaAI(currentWords []string) ([]string, error) {
 	wordsStr := strings.Join(currentWords, ", ")
 
 	prompt := fmt.Sprintf(`
-You are an IT learning curriculum creator.
+You are an learning curriculum creator.
 A student has already learned the following terms:
 Learned terms: [%s]
 
-Please propose three new terms that the student has *not learned yet* and that are highly related, helping them take the next step in their learning.
+Please propose five new terms that the student has *not learned yet* and that are highly related, helping them take the next step in their learning.
 
 
 [ABSOLUTE RESTRICTIONS]
