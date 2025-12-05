@@ -426,10 +426,13 @@ func GenerateAndAddStatementHandler(c *gin.Context) {
 	// 1. URLからIDを取得 (パスパラメータ)
 	questionID := c.Param("question_id")
 
-	
+	var req struct {
+		Type string `json:"type"` // 例: "穴埋め入力", "4択問題形式"
+	}
+
 	// 2. 生成 & 保存
 	// ★修正: 戻り値を使わないので newStmt ではなく _ で受け取る！
-	_, err := service.GenerateAndAddStatement(questionID)
+	_, err := service.GenerateAndAddStatement(questionID, req.Type)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Generation failed: " + err.Error()})
 		return
