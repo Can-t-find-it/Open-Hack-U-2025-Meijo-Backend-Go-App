@@ -70,16 +70,16 @@ func SetupRouter() *gin.Engine {
 
 			protected.POST("/folders", handlers.CreateFolderHandler)
 			protected.DELETE("/folders", handlers.DeleteFoldersBatchHandler)
-			protected.GET("/textbooks", handlers.GetTextbooksHandler)
+			protected.GET("/textbooks", handlers.GetTextbooksHandler)//?????
 			protected.POST("/textbooks", handlers.CreateTextbookHandler)
 			protected.GET("/textbook/:id", handlers.GetTextbookDetailHandler)
 			protected.DELETE("/textbook/:id", handlers.DeleteTextbookHandler)
 			protected.POST("/textbook/:id/result", handlers.UpdateTextbookResultHandler)
 
 			// === 問題・問題文の操作 ===
-			protected.POST("/question", handlers.AddQuestionHandler)
+			protected.POST("/question", handlers.AddQuestionHandler)//?????
 			protected.DELETE("/question/:id", handlers.DeleteQuestionHandler)
-			protected.POST("/questionstatement", handlers.AddQuestionStatementHandler)
+			protected.POST("/questionstatement", handlers.AddQuestionStatementHandler)//?????
 			protected.DELETE("/questionstatement/:id", handlers.DeleteQuestionStatementHandler)
 
 			// === ユーザー情報取得 ===

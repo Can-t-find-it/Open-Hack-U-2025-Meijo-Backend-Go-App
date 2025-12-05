@@ -159,37 +159,47 @@ func GenerateWorkbookForQAndA(answers []string, pattern string) ([]dtos.ResultIt
 
 // generateQuestion4ChoicePrompt は四択問題のプロンプトを生成する共通ヘルパー
 func generateQuestion4ChoicePrompt(answer string, pattern string, existingQuestions []string) string {
-	// 既存の問題文を文字列化（プロンプトで参照させるため）
-	existingQStr := strings.Join(existingQuestions, " / ")
+    // 既存の問題文がない場合は "なし" とする（空文字だとAIが混乱することがあるため）
+    existingQStr := "なし"
+    if len(existingQuestions) > 0 {
+        existingQStr = strings.Join(existingQuestions, " / ")
+    }
 
-	return fmt.Sprintf(`
-	あなたは教育用の問題作成アシスタントです。
-	与えられた単語を答えとする問題を1つ作成してください。
+    // 引数の順序をテンプレートに合わせて修正: answer, pattern, existingQStr
+    return fmt.Sprintf(`
+あなたはプロフェッショナルな教育教材作成者です。
+以下の「ターゲット単語」が正解となるような、高品質な4択問題を作成してください。
 
-	ターゲット単語: %s
-	作成パターン: %s
-	既存の問題文: %s
+【入力データ】
+- ターゲット単語（正解）: %s
+- 作成パターン: %s
+- 既存の問題文（重複を避ける）: %s
 
-	【重要：作成パターンの定義】
-	- "4択問題形式" の場合: スタンダードなクイズを作成してください。（例：「～は何？」）
-	- "穴埋め4択" の場合: 問題文の中に空欄（）を作り、そこに入る言葉を答えさせてください。（例：「～は（）である」）
-	出力フォーマット（必ず守ってください）:
+【重要：絶対守るべきルール】
+1. **禁止事項**: 問題文の中に、ターゲット単語（正解）をそのまま使用してはいけません。答えがバレてしまいます。
+   - 悪い例（答えがリンゴの場合）: 「リンゴは赤い果物ですが、これは何？」
+   - 良い例（答えがリンゴの場合）: 「赤くて丸い、医者いらずとも言われる果物は何？」
+2. **選択肢**: 必ず4つ作成し、そのうち1つだけを正解、残り3つを誤答にしてください。
+3. **重複回避**: 「既存の問題文」と似た問題は作らないでください。
 
-	【条件】
-	- 選択肢は必ず4つ（正解1、誤答3）作成すること。
-	- 出力フォーマットを厳守すること。
-	
-	【出力フォーマット】
-	問題: ...
-	選択肢:
-	A: ...
-	B: ...
-	C: ...
-	D: ...
-	正解: A
-	解説: ...
-	`, answer, existingQStr, pattern)
+【作成パターンの定義】
+- "4択問題形式": ターゲット単語に関する知識を問う一般的なクイズを作成してください。
+- "穴埋め4択": 文脈からターゲット単語を推測させる文を作り、ターゲット単語が入る部分を必ず「（　）」という空欄に置き換えてください。
+
+【出力フォーマット】
+以下の形式のみを出力してください（Markdownなどは不要）。
+
+問題: [ここに問題文]
+選択肢:
+A: [選択肢1]
+B: [選択肢2]
+C: [選択肢3]
+D: [選択肢4]
+正解: [A/B/C/D のいずれか一文字]
+解説: [なぜその答えになるかの簡潔な説明]
+`, answer, pattern, existingQStr)
 }
+
 
 // parse4ChoiceOutput はモデルからの出力文字列を ResultItem 構造体にパースする
 func parse4ChoiceOutput(content string) (dtos.ResultItem, error) {
@@ -384,7 +394,7 @@ func SuggestNewWordsViaAI(currentWords []string) ([]string, error) {
 	wordsStr := strings.Join(currentWords, ", ")
 
 	prompt := fmt.Sprintf(`
-	あなたはIT学習のカリキュラム作成者です。
+	あなたは学習のカリキュラム作成者です。
 	ある学生が以下の単語を「既に学習済み」です。
 	学習済み単語: [%s]
 
