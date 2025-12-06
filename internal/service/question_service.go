@@ -498,7 +498,7 @@ Please propose five new terms that the student has *not learned yet* and that ar
 - Do NOT repeat the same term.
 
 [OUTPUT FORMAT]
-Output only the three terms separated by commas, like: "term1, term2, term3". No explanations.
+Output only the  five terms separated by commas, like: "term1, term2, term3, term4, term5". No explanations.
 
 [ADDITIONAL REQUIREMENT]
 Provide your output in Japanese.
