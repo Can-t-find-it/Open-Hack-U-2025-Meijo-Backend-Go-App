@@ -103,8 +103,8 @@ func GetTextbookDetail(textbookID string) (*dtos.TextbookDetailResponse, error) 
 
 // CreateTextbook: 新しい問題集を作成
 // 引数の typeStr は、ユーザーからの入力なので string のままでOK
-func CreateTextbook(name string, typeStr string, folderID string) error {
-	
+func CreateTextbook(userID string, name string, typeStr string, folderID string) error {
+
 	// 1. 入力された文字列を、専用の型にキャスト（変換）してみる
 	inputType := models.TextbookType(typeStr)
 
@@ -123,6 +123,7 @@ func CreateTextbook(name string, typeStr string, folderID string) error {
 		Name:     name,
 		Type:     inputType, // ここで型付きのデータを渡す
 		FolderID: folderID,
+		UserID:   userID,
 	}
 	result := database.DB.Create(&newTextbook)
 	return result.Error
@@ -199,7 +200,6 @@ func UpdateTextbookStatus(textbookID string, newScore float64, userID string) er
 		return err
 	}
 
-
 	// 回数を+1
 	textbook.PlayTimes += 1
 	// スコア履歴に追加
@@ -209,18 +209,17 @@ func UpdateTextbookStatus(textbookID string, newScore float64, userID string) er
 	}
 
 	studyLog := models.StudyLog{
-		ID:            uuid.New().String(),
-		UserID:        userID,
-		TextbookID:    textbookID,
-		Score:         newScore,
-		AnsweredAt:    time.Now(),
+		ID:         uuid.New().String(),
+		UserID:     userID,
+		TextbookID: textbookID,
+		Score:      newScore,
+		AnsweredAt: time.Now(),
 
-		
 		// ★ここで名前を保存します（スナップショット）
-		Name:          user.Name,      // "しまけん"
-		TextbookName:  textbook.Name,  // "アルゴリズム演習"
-		Accuracy:      newScore,       // 今回はスコアをそのまま正答率として扱う
-		TodayProgress: 1,              // (仮) 1回分進んだ
+		Name:          user.Name,     // "しまけん"
+		TextbookName:  textbook.Name, // "アルゴリズム演習"
+		Accuracy:      newScore,      // 今回はスコアをそのまま正答率として扱う
+		TodayProgress: 1,             // (仮) 1回分進んだ
 	}
 
 	if err := database.DB.Create(&studyLog).Error; err != nil {
@@ -229,7 +228,7 @@ func UpdateTextbookStatus(textbookID string, newScore float64, userID string) er
 
 	// 5. フォルダ進捗更新 (定義されていれば)
 	// return updateFolderProgress(textbook.FolderID)
-	
+
 	return nil
 }
 

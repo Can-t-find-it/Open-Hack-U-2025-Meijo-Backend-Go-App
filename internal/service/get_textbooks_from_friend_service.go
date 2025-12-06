@@ -76,6 +76,7 @@ func (s *GetTextbooksService) GetTextbooks(userID string) (*dtos.FinalResponseTe
 	}
 	fmt.Printf("Number of textbooks found: %d\n", len(textbooks))
 
+
 	// 教科書が空の場合でも、以降の処理で空の教科書リストを持つフレンドリストを返します
 
 	// 4. 質問数を効率的に取得 (TextbookID -> QuestionCount のマップ)
