@@ -3,11 +3,12 @@ package handlers
 import (
 	"net/http"
 
-	"hacku_2025_meijo/internal/dtos"
 	"hacku_2025_meijo/internal/database"
-	"github.com/gin-gonic/gin"
+	"hacku_2025_meijo/internal/dtos"
 	"hacku_2025_meijo/internal/models"
 	"hacku_2025_meijo/internal/service"
+
+	"github.com/gin-gonic/gin"
 )
 
 // POST /api/upload_pdf
@@ -16,7 +17,7 @@ func UploadPDFHandler(c *gin.Context) {
 	// ---------------------------------------------------
 	// 1. リクエストパラメータの取得 (教科書作成用)
 	// ---------------------------------------------------
-	
+
 	// ファイル
 	file, err := c.FormFile("file")
 	if err != nil {
@@ -47,9 +48,11 @@ func UploadPDFHandler(c *gin.Context) {
 	// ---------------------------------------------------
 	// 2. 教科書を新規作成する
 	// ---------------------------------------------------
-	
+
+	userID := c.GetString("userID")
+
 	// ★修正: folderIDをstringのまま渡す
-	err = service.CreateTextbook(name, typeStr, folderID)
+	err = service.CreateTextbook(userID, name, typeStr, folderID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Textbook creation failed: " + err.Error()})
 		return
@@ -102,7 +105,7 @@ func UploadPDFHandler(c *gin.Context) {
 	// ---------------------------------------------------
 	// 5. レスポンス (整形して返す)
 	// ---------------------------------------------------
-	
+
 	// ★修正: textbookIDは既にstringなので変換不要
 	resultDTO, err := service.GetTextbookDetail(textbookID)
 	if err != nil {
@@ -113,10 +116,10 @@ func UploadPDFHandler(c *gin.Context) {
 	// 指定されたJSON形式 { "textbook": { ... } } で返す
 	c.JSON(http.StatusOK, gin.H{
 		"textbook": struct {
-			ID        string                   `json:"id"`
-			Name      string                   `json:"name"`
-			Type      string                   `json:"type"`      
-			Questions []dtos.QuestionResponse  `json:"questions"`
+			ID        string                  `json:"id"`
+			Name      string                  `json:"name"`
+			Type      string                  `json:"type"`
+			Questions []dtos.QuestionResponse `json:"questions"`
 			// Score     []float64                `json:"score,omitempty"` // 必要ならコメントアウト解除
 			// Times     int                      `json:"times,omitempty"` // 必要ならコメントアウト解除
 		}{
@@ -128,8 +131,8 @@ func UploadPDFHandler(c *gin.Context) {
 	})
 }
 
-//pdfを受けって、重要単語を抽出して返す
-func ExtractKeywordsFromTextHandler(c *gin.Context){
+// pdfを受けって、重要単語を抽出して返す
+func ExtractKeywordsFromTextHandler(c *gin.Context) {
 	file, err := c.FormFile("file")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "File is required"})

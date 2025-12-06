@@ -141,7 +141,6 @@ func GenerateProblemHandler(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-
 // ---- POST 四択 複数 (個別API) ----
 func Generate4ChoiceWorkbookForQAndAHandler(c *gin.Context) {
 	var body dtos.RequestBody
@@ -215,7 +214,7 @@ func GenerateWorkbookForQAndAHandler(c *gin.Context) {
 // GET /api/textbooks - 自分の問題集一覧取得
 func GetTextbooksHandler(c *gin.Context) {
 	userID := c.GetString("userID")
-	
+
 	// IDが空（取れなかった）場合のエラー処理
 	if userID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "ユーザーIDがありません（再ログインしてください）"})
@@ -242,12 +241,14 @@ func CreateTextbookHandler(c *gin.Context) {
 		Type     string `json:"type"`
 		FolderID string `json:"folderId"`
 	}
+	userID := c.GetString("userID")
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	err := service.CreateTextbook(req.Name, req.Type, req.FolderID)
+	err := service.CreateTextbook(userID, req.Name, req.Type, req.FolderID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -451,7 +452,7 @@ func CreateFolderHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
 		return
 	}
-	
+
 	// ユーザーIDは uint で取得される(ミドルウェア次第だが)
 	userID := c.GetString("userID")
 
@@ -460,18 +461,16 @@ func CreateFolderHandler(c *gin.Context) {
 		return
 	}
 	// 必要に応じて string に変換
-	// userID := strconv.Itoa(int(uidUint)) 
+	// userID := strconv.Itoa(int(uidUint))
 	// ※ service.CreateFolder が uint を求めているならそのままでOK
 
-	_, err := service.CreateFolder(userID,req.FolderName)
+	_, err := service.CreateFolder(userID, req.FolderName)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	c.Status(http.StatusNoContent)
 }
-
-
 
 // DELETE /api/folders/:id - フォルダ削除
 func DeleteFoldersBatchHandler(c *gin.Context) {

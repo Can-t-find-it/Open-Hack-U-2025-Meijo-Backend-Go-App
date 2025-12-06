@@ -19,7 +19,7 @@ func (s *GetTextbooksService) GetTextbooks(userID string) (*dtos.FinalResponseTe
 
 	if len(friends) == 0 {
 		return &dtos.FinalResponseTextbooks{
-			Friends: []dtos.ResponseTextbooks{}, 
+			Friends: []dtos.ResponseTextbooks{},
 		}, nil
 	}
 
@@ -33,7 +33,7 @@ func (s *GetTextbooksService) GetTextbooks(userID string) (*dtos.FinalResponseTe
 	}
 
 	textMap := make(map[string][]dtos.SoloTextbook)
-	
+
 	responseTextbooks := []dtos.ResponseTextbooks{}
 
 	for _, t := range textbooks {
@@ -52,7 +52,6 @@ func (s *GetTextbooksService) GetTextbooks(userID string) (*dtos.FinalResponseTe
 	if err != nil {
 		return nil, err
 	}
-	
 
 	for _, fid := range friendsID {
 		book := textMap[fid]
