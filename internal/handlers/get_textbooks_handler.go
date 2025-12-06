@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 
 	"hacku_2025_meijo/internal/service"
@@ -20,6 +21,7 @@ func NewGetTextBooksHandler() *GetTextBooksHandler {
 
 func (h *GetTextBooksHandler) GetTextbooks(c *gin.Context) {
 	userID := c.GetString("userID")
+	fmt.Printf("Authenticated UserID: %s\n", userID)
 	if userID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "ログインしてください"})
 		return
@@ -39,6 +41,7 @@ func (h *GetTextBooksHandler) GetFriendTextbookDetail(c *gin.Context) {
 	// 1. URLから教科書IDを取得
 	textbookID := c.Param("textbook_id")
 
+	fmt.Printf("Requested Textbook ID: %s\n", textbookID)
 	// 2. 既存のService関数を再利用して詳細データを取得
 	// (Textbookデータは誰のものでも構造は同じなので、共通の取得処理を使えます)
 	result, err := service.GetTextbookDetail(textbookID)

@@ -3,7 +3,7 @@ package service
 import (
 	"hacku_2025_meijo/internal/database"
 	"hacku_2025_meijo/internal/models"
-
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -14,12 +14,14 @@ func (s *TextbookCopyService) AddTextbook(userID string, targetFolderID string, 
 	return database.DB.Transaction(func(tx *gorm.DB) error {
 
 		var sourceBook models.Textbook
-		if err := tx.First(&sourceBook, sourceTextbookID).Error; err != nil {
+		// 1. コピー元の教科書を取得
+		if err := tx.Where("id = ?", sourceTextbookID).First(&sourceBook).Error; err != nil {
 			return err
 		}
 
 		// 2. 新しい教科書を作成 (コピー)
 		newBook := models.Textbook{
+			ID:         	 uuid.New().String(),
 			UserID:          userID,         // 自分のID
 			FolderID:        targetFolderID, // 保存先フォルダ
 			Name:            sourceBook.Name,
@@ -44,6 +46,7 @@ func (s *TextbookCopyService) AddTextbook(userID string, targetFolderID string, 
 		for _, q := range questions {
 			// 新しい問題データを作成
 			newQuestion := models.Question{
+				ID:         uuid.New().String(),
 				TextbookID: newBook.ID, // ★新しい教科書に紐付け
 				Answer:     q.Answer,
 				// ID: 0, CreatedAtなどはリセット

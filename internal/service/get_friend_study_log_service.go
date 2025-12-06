@@ -29,7 +29,7 @@ func (s *GetFriendStudyLogService) GetFriendStudyLog(userId string) (*dtos.AllFr
 		myFriendsID = append(myFriendsID, f.FriendUserID)
 	}
 
-	if err := database.DB.Where("user_id IN ?", myFriendsID).Find(&allStudyLogs).Error; err != nil {
+	if err := database.DB.Where("user_id IN ?", myFriendsID).Order("answered_at DESC").Find(&allStudyLogs).Error; err != nil {
 		return nil, err
 	}
 
@@ -42,6 +42,7 @@ func (s *GetFriendStudyLogService) GetFriendStudyLog(userId string) (*dtos.AllFr
 			FriendName: log.Name,
 			AnsweredAt: log.AnsweredAt,
 			TextbookName: log.TextbookName,
+			TextbookID: log.TextbookID,
 			Accuracy: log.Accuracy,
 			TodayProgress: log.TodayProgress,
 		}

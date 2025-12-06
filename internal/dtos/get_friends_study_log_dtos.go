@@ -12,6 +12,7 @@ type FriendStudyLog struct {
 	FriendName    string    `json:"friendName"` //新規追加
 	AnsweredAt    time.Time `json:"dateTime"`
 	TextbookName  string    `json:"textbookName"`  //新規追加
+	TextbookID    string    `json:"textbookId"`    //新規追加
 	Accuracy      float64   `json:"accuracy"`      //新規追加
 	TodayProgress uint      `json:"todayProgress"` //新規追加
 
